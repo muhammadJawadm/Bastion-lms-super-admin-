@@ -1,128 +1,188 @@
-import type { ElementType } from "react";
 import { StatCard } from "../components/ui/StatCard";
+import { Badge } from "../components/ui/Badge";
+import { COMPANIES } from "../data/companies";
+import { COURSES } from "./CourseLibrary";
+import { FORMS } from "../data/forms";
+import { CONTENT_REQUESTS } from "../data/contentRequests";
+import { DISTRIBUTIONS } from "../data/distributions";
+import { AUDIT_LOG } from "../data/auditLog";
+import { SUPPORT_SESSIONS } from "../data/supportSessions";
 import {
-  FaBuilding, FaUsers, FaDollarSign, FaShieldAlt, FaGraduationCap,
-  FaCheckCircle, FaUserPlus, FaClock,
+  FaBuilding, FaUserClock, FaBan, FaExclamationTriangle, FaSyncAlt,
+  FaDollarSign, FaFileInvoice, FaTimesCircle, FaUsers,
+  FaHistory, FaHeadset, FaShieldAlt, FaCloudUploadAlt,
 } from "react-icons/fa";
 
-const BRAND_BLUE = "#2563eb";
+const REFERENCE_DATE = new Date("2026-08-25");
+const RENEWAL_WINDOW_DAYS = 90;
 
-const kpiStats = [
-  { label: "Active Clients",  value: "9",        sub: "of 10 companies",       icon: FaBuilding,   iconBg: "bg-blue-50",   iconColor: "text-blue-600"   },
-  { label: "Active Users",    value: "1,030",    sub: "↑ 6% vs last month",    icon: FaUsers,      iconBg: "bg-indigo-50", iconColor: "text-indigo-600", subColor: "text-green-600" },
-  { label: "Monthly Revenue", value: "$184,200", sub: "↑ 9% vs last month",    icon: FaDollarSign, iconBg: "bg-green-50",  iconColor: "text-green-600",  subColor: "text-green-600" },
-  { label: "Compliance Rate", value: "87%",      sub: "Across all clients",    icon: FaShieldAlt,  iconBg: "bg-cyan-50",   iconColor: "text-cyan-600"   },
-];
-
-const trendCards = [
-  { label: "Companies", value: "9",       delta: "+1 this month",  icon: FaBuilding,      iconBg: "bg-blue-50",   iconColor: "text-blue-600",   data: [6, 7, 7, 8, 8, 9]                      },
-  { label: "Users",     value: "1,030",   delta: "↑ 6%",           icon: FaUsers,         iconBg: "bg-indigo-50", iconColor: "text-indigo-600", data: [812, 866, 915, 958, 998, 1030]         },
-  { label: "Revenue",   value: "$184.2K", delta: "↑ 9%",           icon: FaDollarSign,    iconBg: "bg-green-50",  iconColor: "text-green-600",  data: [155200, 161800, 168400, 172900, 179600, 184200] },
-  { label: "Courses",   value: "32",      delta: "+2 this month",  icon: FaGraduationCap, iconBg: "bg-purple-50", iconColor: "text-purple-600", data: [22, 24, 26, 28, 30, 32]                },
-];
-
-const activities = [
-  { id: 1, icon: FaUserPlus,      iconBg: "bg-blue-50",   iconColor: "text-blue-500",   text: "Titan Steel Erectors added 12 new employee accounts",             time: "12 min ago" },
-  { id: 2, icon: FaCheckCircle,   iconBg: "bg-green-50",  iconColor: "text-green-500",  text: "Beacon Energy Field Services completed Excavation Safety rollout", time: "40 min ago" },
-  { id: 3, icon: FaGraduationCap, iconBg: "bg-purple-50", iconColor: "text-purple-500", text: "\"Fall Protection Fundamentals\" course published to library",     time: "2 hrs ago"  },
-  { id: 4, icon: FaClock,         iconBg: "bg-orange-50", iconColor: "text-orange-500", text: "Northbridge Utilities has 4 overdue inspections this week",        time: "3 hrs ago"  },
-  { id: 5, icon: FaUserPlus,      iconBg: "bg-blue-50",   iconColor: "text-blue-500",   text: "New client onboarded — Vanguard Pipeline Solutions",               time: "1 day ago"  },
-  { id: 6, icon: FaCheckCircle,   iconBg: "bg-green-50",  iconColor: "text-green-500",  text: "Apex Electrical Contractors renewed their Professional plan",      time: "1 day ago"  },
-];
-
-/* ── Trend card — stat tile + sparkline, single hue, small multiple ──── */
-
-function Sparkline({ data }: { data: number[] }) {
-  const w = 120, h = 36, pad = 3;
-  const max = Math.max(...data);
-  const min = Math.min(...data);
-  const range = max - min || 1;
-
-  const points = data.map((v, i) => ({
-    x: (i / (data.length - 1)) * w,
-    y: pad + (1 - (v - min) / range) * (h - pad * 2),
-  }));
-  const line = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
-  const area = `${line} L ${points[points.length - 1].x} ${h} L ${points[0].x} ${h} Z`;
-  const last = points[points.length - 1];
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="h-9 w-full" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={BRAND_BLUE} stopOpacity="0.18" />
-          <stop offset="100%" stopColor={BRAND_BLUE} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#sparkFill)" />
-      <path d={line} fill="none" stroke={BRAND_BLUE} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={last.x} cy={last.y} r={2.5} fill={BRAND_BLUE} stroke="#fff" strokeWidth={1.25} />
-    </svg>
-  );
-}
-
-function TrendCard({ label, value, delta, icon: Icon, iconBg, iconColor, data }: {
-  label: string; value: string; delta: string; icon: ElementType;
-  iconBg: string; iconColor: string; data: number[];
-}) {
-  return (
-    <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-gray-500">{label}</p>
-          <p className="mt-1.5 text-2xl font-semibold text-gray-900">{value}</p>
-          <p className="mt-1 text-xs font-medium text-green-600">{delta}</p>
-        </div>
-        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconBg}`}>
-          <Icon size={15} className={iconColor} />
-        </div>
-      </div>
-      <div className="mt-3">
-        <Sparkline data={data} />
-      </div>
-    </div>
-  );
+function daysUntil(dateStr: string): number | null {
+  if (!dateStr || dateStr === "—") return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  return Math.round((d.getTime() - REFERENCE_DATE.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export default function Dashboard() {
+  const active = COMPANIES.filter((c) => c.status === "Active").length;
+  const onboarding = COMPANIES.filter((c) => c.status === "Onboarding").length;
+  const suspended = COMPANIES.filter((c) => c.status === "Suspended").length;
+  const overdue = COMPANIES.filter((c) => c.paymentStatus !== "Current").length;
+  const renewalDue = COMPANIES.filter((c) => {
+    const d = daysUntil(c.renewalDate);
+    return d !== null && d <= RENEWAL_WINDOW_DAYS;
+  }).length;
+
+  const pipelineStages = ["Requested", "Scoping", "In Development", "Internal Review", "Client Review", "Ready to Publish", "Published"] as const;
+  const pipelineCounts = pipelineStages.map((stage) => ({ stage, count: CONTENT_REQUESTS.filter((r) => r.status === stage).length }));
+
+  const upcomingDeadlines = [...CONTENT_REQUESTS]
+    .filter((r) => r.status !== "Published" && r.status !== "Cancelled")
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
+    .slice(0, 5);
+
+  const outdatedCompanies = Array.from(
+    new Set(DISTRIBUTIONS.filter((d) => d.clientVersion !== d.currentMasterVersion).map((d) => d.companyName))
+  );
+
+  const mrr = COMPANIES.reduce((s, c) => s + c.billing.recurringPlatformFee * (1 - c.billing.discountPercent / 100), 0);
+  const outstandingInvoices = COMPANIES.reduce((s, c) => s + c.billing.outstandingBalance, 0);
+  const failedPayments = COMPANIES.filter((c) => c.paymentStatus === "Failed").length;
+  const seatLimitExceeded = COMPANIES.filter((c) => c.seatsUsed >= c.seatsBought).length;
+
+  const openSupportSessions = SUPPORT_SESSIONS.filter((s) => s.endTime === null).length;
+  const securityAlerts = AUDIT_LOG.filter((e) => e.category === "Auth" && e.action.toLowerCase().includes("denied")).length;
+  const failedImports = 0;
+  const recentActivity = [...AUDIT_LOG].slice(0, 6);
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">Welcome back — here's the platform snapshot for today.</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {kpiStats.map((s) => <StatCard key={s.label} {...s} />)}
+        <p className="mt-1 text-sm text-gray-500">Bastion's platform snapshot — client health, content production and business oversight.</p>
       </div>
 
       <div>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          6-Month Trends
-        </h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {trendCards.map((t) => <TrendCard key={t.label} {...t} />)}
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Client Companies</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="Active"        value={String(active)}      sub={`of ${COMPANIES.length} companies`} icon={FaBuilding}      iconBg="bg-green-50"  iconColor="text-green-600" />
+          <StatCard label="Onboarding"    value={String(onboarding)}  sub="Provisioning in progress"           icon={FaUserClock}     iconBg="bg-blue-50"   iconColor="text-blue-600" subColor="text-blue-500" />
+          <StatCard label="Suspended"     value={String(suspended)}   sub="Access blocked"                     icon={FaBan}           iconBg="bg-red-50"    iconColor="text-red-500" subColor="text-red-500" />
+          <StatCard label="Overdue"       value={String(overdue)}     sub="Payment past due"                   icon={FaExclamationTriangle} iconBg="bg-orange-50" iconColor="text-orange-500" subColor="text-orange-500" />
+          <StatCard label="Renewal Due"   value={String(renewalDue)}  sub={`Within ${RENEWAL_WINDOW_DAYS} days`} icon={FaSyncAlt}      iconBg="bg-amber-50"  iconColor="text-amber-600" subColor="text-amber-600" />
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-gray-800">Recent Activity</h2>
-          <span className="text-xs text-gray-400">Live feed</span>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-1">
+          <h2 className="mb-3 text-sm font-semibold text-gray-800">Content Pipeline</h2>
+          <div className="space-y-2.5">
+            {pipelineCounts.map((row) => (
+              <div key={row.stage} className="flex items-center gap-3">
+                <span className="w-28 shrink-0 truncate text-xs text-gray-500">{row.stage}</span>
+                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${(row.count / Math.max(1, CONTENT_REQUESTS.length)) * 100}%` }} />
+                </div>
+                <span className="w-5 shrink-0 text-right text-xs font-medium text-gray-700">{row.count}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-400">{COURSES.filter((c) => c.status === "Published").length} courses · {FORMS.filter((f) => f.status === "Published").length} forms published</p>
         </div>
-        <ul className="divide-y divide-gray-50">
-          {activities.map((a) => (
-            <li key={a.id} className="flex items-start gap-3.5 px-5 py-3.5">
-              <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${a.iconBg}`}>
-                <a.icon size={13} className={a.iconColor} />
+
+        <div className="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-1">
+          <div className="border-b border-gray-100 px-5 py-3.5"><h2 className="text-sm font-semibold text-gray-800">Upcoming Production Deadlines</h2></div>
+          <ul className="divide-y divide-gray-50">
+            {upcomingDeadlines.length === 0 ? (
+              <li className="px-5 py-6 text-center text-sm text-gray-400">Nothing due.</li>
+            ) : upcomingDeadlines.map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-gray-700">{r.title}</p>
+                  <p className="text-xs text-gray-400">{r.companyName}</p>
+                </div>
+                <span className="shrink-0 text-xs font-medium text-gray-500">{r.dueDate}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-1">
+          <div className="border-b border-gray-100 px-5 py-3.5"><h2 className="text-sm font-semibold text-gray-800">Clients on Outdated Content Versions</h2></div>
+          <ul className="divide-y divide-gray-50">
+            {outdatedCompanies.length === 0 ? (
+              <li className="px-5 py-6 text-center text-sm text-gray-400">Everyone is current.</li>
+            ) : outdatedCompanies.map((name) => (
+              <li key={name} className="flex items-center justify-between gap-3 px-5 py-3">
+                <p className="text-sm text-gray-700">{name}</p>
+                <Badge variant="warning">Outdated</Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Business</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <StatCard label="Monthly Revenue"       value={`$${Math.round(mrr).toLocaleString()}`}    sub="Recurring platform fees"     icon={FaDollarSign}  iconBg="bg-green-50"  iconColor="text-green-600" subColor="text-green-600" />
+          <StatCard label="Outstanding Invoices"  value={`$${outstandingInvoices.toLocaleString()}`} sub="Across all clients"          icon={FaFileInvoice} iconBg="bg-orange-50" iconColor="text-orange-600" />
+          <StatCard label="Failed Payments"       value={String(failedPayments)}                     sub="Needs follow-up"             icon={FaTimesCircle} iconBg="bg-red-50"    iconColor="text-red-500" subColor="text-red-500" />
+          <StatCard label="Renewals Due"          value={String(renewalDue)}                         sub={`Within ${RENEWAL_WINDOW_DAYS} days`} icon={FaSyncAlt} iconBg="bg-amber-50"  iconColor="text-amber-600" />
+          <StatCard label="Seats Exceeded"        value={String(seatLimitExceeded)}                  sub="Over contracted seat count"  icon={FaUsers}       iconBg="bg-purple-50" iconColor="text-purple-600" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <h2 className="text-sm font-semibold text-gray-800">Recent Super Admin Activity</h2>
+            <span className="text-xs text-gray-400">From Audit Log</span>
+          </div>
+          <ul className="divide-y divide-gray-50">
+            {recentActivity.map((e) => (
+              <li key={e.id} className="flex items-start gap-3.5 px-5 py-3.5">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50">
+                  <FaHistory size={12} className="text-gray-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-700">{e.action}{e.affectedTenant ? ` — ${e.affectedTenant}` : ""}</p>
+                  <p className="mt-0.5 text-xs text-gray-400">{e.actor} · {e.timestamp}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50"><FaHeadset size={14} className="text-amber-600" /></div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{openSupportSessions}</p>
+                <p className="text-xs text-gray-500">Open support sessions</p>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-700">{a.text}</p>
-                <p className="mt-0.5 text-xs text-gray-400">{a.time}</p>
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50"><FaShieldAlt size={14} className="text-red-500" /></div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{securityAlerts}</p>
+                <p className="text-xs text-gray-500">Security alerts (7d)</p>
               </div>
-            </li>
-          ))}
-        </ul>
+            </div>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50"><FaCloudUploadAlt size={14} className="text-gray-400" /></div>
+              <div>
+                <p className="text-lg font-bold text-gray-900">{failedImports}</p>
+                <p className="text-xs text-gray-500">Failed imports</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -5,12 +5,12 @@ import { Modal, FieldLabel, FieldInput, ModalBtn } from "../components/ui/Modal"
 import { COMPANIES } from "../data/companies";
 import {
   FaDollarSign, FaFileInvoice, FaExclamationTriangle, FaRedo,
-  FaDownload, FaPlus,
+  FaDownload, FaPlus, FaLock,
 } from "react-icons/fa";
 
 const PLAN_TIERS = [
-  { name: "Starter",      price: "$45 / seat / mo",  seatLimit: "Up to 50",     features: "Course + template library, basic analytics" },
-  { name: "Professional", price: "$65 / seat / mo",  seatLimit: "Up to 150",    features: "+ custom templates, compliance dashboard" },
+  { name: "Starter",      price: "$45 / seat / mo",  seatLimit: "Up to 50",     features: "Course + form library, basic analytics" },
+  { name: "Professional", price: "$65 / seat / mo",  seatLimit: "Up to 150",    features: "+ custom content, compliance dashboard" },
   { name: "Enterprise",   price: "Custom",           seatLimit: "Unlimited",    features: "+ white-labeling, API access, priority SLA" },
 ];
 
@@ -23,15 +23,16 @@ const INVOICES = [
   { id: "INV-2026-0807", client: COMPANIES[1].name, amount: "$4,940.00",  status: "Paid",    date: "01 Jul 2026" },
 ];
 
-const FAILED_PAYMENTS = [
-  { client: COMPANIES[7].name, amount: "$1,240.00", reason: "Card declined",       retriesLeft: 2, graceEnds: "25 Aug 2026" },
-  { client: COMPANIES[4].name, amount: "$625.00",    reason: "Insufficient funds", retriesLeft: 1, graceEnds: "22 Aug 2026" },
-];
-
 function statusBadge(s: string): "success" | "danger" | "warning" {
   if (s === "Paid") return "success";
   if (s === "Failed") return "danger";
   return "warning";
+}
+function maskedPaymentMethod(pm: (typeof COMPANIES)[number]["billing"]["paymentMethod"]) {
+  if (pm.type === "card") return `${pm.brand} •••• ${pm.last4}`;
+  if (pm.type === "ach") return `${pm.bankName} ${pm.maskedAccountNumber}`;
+  if (pm.type === "invoice") return "Invoice / manual";
+  return "None on file";
 }
 
 function AssignPlanContent() {
@@ -64,12 +65,17 @@ export default function Billing() {
   const [tab, setTab] = useState("overview");
   const [assignOpen, setAssignOpen] = useState(false);
 
+  const mrr = COMPANIES.reduce((s, c) => s + c.billing.recurringPlatformFee * (1 - c.billing.discountPercent / 100), 0);
+  const outstanding = COMPANIES.reduce((s, c) => s + c.billing.outstandingBalance, 0);
+  const failedCount = COMPANIES.filter((c) => c.paymentStatus === "Failed").length;
+  const failedPayments = COMPANIES.filter((c) => c.billing.outstandingBalance > 0);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Billing</h1>
-          <p className="mt-1 text-sm text-gray-500">Plans, seats, invoices and payment health across every client.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Billing &amp; Contracts</h1>
+          <p className="mt-1 text-sm text-gray-500">Plans, seats, contracts, invoices and payment health across every client.</p>
         </div>
         <button
           onClick={() => setAssignOpen(true)}
@@ -81,9 +87,9 @@ export default function Billing() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { label: "Monthly Revenue",     value: "$184,200", icon: FaDollarSign,          bg: "bg-green-50", color: "text-green-600" },
-          { label: "Outstanding Invoices", value: "$1,865",   icon: FaFileInvoice,         bg: "bg-orange-50", color: "text-orange-600" },
-          { label: "Failed Payments",      value: FAILED_PAYMENTS.length, icon: FaExclamationTriangle, bg: "bg-red-50", color: "text-red-500" },
+          { label: "Monthly Revenue",     value: `$${Math.round(mrr).toLocaleString()}`, icon: FaDollarSign,          bg: "bg-green-50", color: "text-green-600" },
+          { label: "Outstanding Invoices", value: `$${outstanding.toLocaleString()}`,     icon: FaFileInvoice,         bg: "bg-orange-50", color: "text-orange-600" },
+          { label: "Failed Payments",      value: failedCount, icon: FaExclamationTriangle, bg: "bg-red-50", color: "text-red-500" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
@@ -97,8 +103,9 @@ export default function Billing() {
       <Tabs
         tabs={[
           { key: "overview", label: "Plan Tiers" },
+          { key: "contracts", label: "Contracts", count: COMPANIES.length },
           { key: "invoices", label: "Invoices" },
-          { key: "failed",   label: "Failed Payments", count: FAILED_PAYMENTS.length },
+          { key: "failed",   label: "Failed Payments", count: failedPayments.length },
         ]}
         active={tab}
         onChange={setTab}
@@ -115,6 +122,37 @@ export default function Billing() {
               <button className="mt-4 w-full rounded-lg border border-gray-200 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">Edit Tier</button>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === "contracts" && (
+        <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50/70">
+                <tr>{["Client", "Plan", "Billing Frequency", "Recurring Fee", "Discount", "PO Reference", "Payment Method", "Renewal"].map((h) => <th key={h} className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>)}</tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {COMPANIES.map((c) => (
+                  <tr key={c.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3 text-sm font-medium text-gray-800">{c.name}</td>
+                    <td className="px-5 py-3"><Badge variant="info">{c.plan}</Badge></td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-500">{c.billing.billingFrequency}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm font-medium text-gray-700">${c.billing.recurringPlatformFee.toLocaleString()}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-500">{c.billing.discountPercent}%</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-500">{c.billing.poReference}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-500">
+                      <span className="inline-flex items-center gap-1.5"><FaLock size={9} className="text-gray-300" /> {maskedPaymentMethod(c.billing.paymentMethod)}</span>
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm text-gray-500">{c.renewalDate}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400 flex items-center gap-1.5">
+            <FaLock size={9} /> Card and ACH details are collected via payment-provider-hosted fields — only masked summaries and processor tokens are stored here.
+          </div>
         </div>
       )}
 
@@ -149,25 +187,28 @@ export default function Billing() {
 
       {tab === "failed" && (
         <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-          <ul className="divide-y divide-gray-50">
-            {FAILED_PAYMENTS.map((f, i) => (
-              <li key={i} className="flex items-center justify-between gap-4 px-5 py-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50"><FaExclamationTriangle size={15} className="text-red-500" /></div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-gray-900">{f.client}</p>
-                    <p className="text-xs text-gray-400">{f.reason} · {f.amount} · grace period ends {f.graceEnds}</p>
+          {failedPayments.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-gray-400">No outstanding balances.</p>
+          ) : (
+            <ul className="divide-y divide-gray-50">
+              {failedPayments.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-50"><FaExclamationTriangle size={15} className="text-red-500" /></div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-gray-900">{c.name}</p>
+                      <p className="text-xs text-gray-400">{c.billing.suspensionRules} · ${c.billing.outstandingBalance.toLocaleString()} outstanding</p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span className="text-xs text-gray-400">{f.retriesLeft} retries left</span>
-                  <button className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
-                    <FaRedo size={10} /> Retry Now
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 transition-colors">
+                      <FaRedo size={10} /> Retry Now
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

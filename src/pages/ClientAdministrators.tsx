@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Badge } from "../components/ui/Badge";
+import { Toggle } from "../components/ui/Toggle";
 import { Modal, FieldLabel, FieldInput, FieldSelect, FieldTextarea, ModalBtn } from "../components/ui/Modal";
 import { COMPANIES } from "../data/companies";
 import {
-  FaSearch, FaPlus, FaCheckCircle, FaExclamationCircle,
-  FaUpload, FaRandom, FaShieldAlt,
+  FaSearch, FaPlus, FaExclamationCircle,
+  FaRandom, FaShieldAlt, FaInfoCircle,
 } from "react-icons/fa";
 
 const AVATAR_COLORS = [
@@ -27,31 +28,29 @@ interface AppUser {
   role: Role;
   company: string | null;
   jobTitle: string;
-  competentPerson: boolean;
   status: Status;
   joined: string;
 }
 
 const USERS: AppUser[] = [
-  { id: 1,  name: "Super Admin",      email: "admin@bastionlms.com",              role: "Super Admin",   company: null,                          jobTitle: "Platform Owner",        competentPerson: false, status: "Active",   joined: "01 Jan 2023" },
-  { id: 2,  name: "Rachel Voss",      email: "rachel.voss@titansteel.com",        role: "Company Admin", company: COMPANIES[0].name,             jobTitle: "Safety Director",        competentPerson: true,  status: "Active",   joined: "18 Jan 2024" },
-  { id: 3,  name: "Devon Marsh",      email: "devon.marsh@titansteel.com",        role: "Employee",      company: COMPANIES[0].name,             jobTitle: "Excavation Foreman",     competentPerson: true,  status: "Active",   joined: "22 Jan 2024" },
-  { id: 4,  name: "Lucia Ferreira",   email: "lucia.f@titansteel.com",            role: "Employee",      company: COMPANIES[0].name,             jobTitle: "Site Crew",              competentPerson: false, status: "Active",   joined: "02 Feb 2024" },
-  { id: 5,  name: "Marcus Ibe",       email: "marcus@coastalexcavation.com",      role: "Company Admin", company: COMPANIES[1].name,             jobTitle: "Operations Manager",     competentPerson: true,  status: "Active",   joined: "02 Apr 2024" },
-  { id: 6,  name: "Sam Whitfield",    email: "sam.w@coastalexcavation.com",       role: "Employee",      company: COMPANIES[1].name,             jobTitle: "Equipment Operator",     competentPerson: false, status: "Suspended", joined: "10 Apr 2024" },
-  { id: 7,  name: "Denise Falk",      email: "denise.falk@apexelectrical.com",    role: "Company Admin", company: COMPANIES[2].name,             jobTitle: "HSE Manager",            competentPerson: true,  status: "Active",   joined: "30 Jun 2024" },
-  { id: 8,  name: "Owen Pratt",       email: "owen.pratt@northbridge.com",        role: "Company Admin", company: COMPANIES[3].name,             jobTitle: "Regional Safety Lead",   competentPerson: true,  status: "Active",   joined: "11 Sep 2023" },
-  { id: 9,  name: "Casey Mullen",     email: "casey@summitroofing.com",           role: "Company Admin", company: COMPANIES[4].name,             jobTitle: "Owner",                  competentPerson: false, status: "Invited",  joined: "05 Feb 2025" },
-  { id: 10, name: "Priya Nandan",     email: "priya.nandan@ironcladis.com",       role: "Company Admin", company: COMPANIES[5].name,             jobTitle: "Plant Safety Manager",   competentPerson: true,  status: "Active",   joined: "19 Nov 2023" },
-  { id: 11, name: "Todd Warrick",     email: "todd.warrick@beaconenergy.com",     role: "Company Admin", company: COMPANIES[6].name,             jobTitle: "Field Ops Director",     competentPerson: true,  status: "Active",   joined: "27 Jul 2023" },
-  { id: 12, name: "Hal Fenwick",      email: "hal.fenwick@vanguardpipeline.com",  role: "Company Admin", company: COMPANIES[8].name,             jobTitle: "QA/QC Manager",          competentPerson: true,  status: "Active",   joined: "08 Mar 2024" },
-  { id: 13, name: "Jordan Blake",     email: "jordan.blake@gmail.com",            role: "Employee",      company: null,                          jobTitle: "Independent Contractor", competentPerson: false, status: "Active",   joined: "14 Jul 2025" },
+  { id: 1,  name: "Super Admin",      email: "admin@bastionlms.com",              role: "Super Admin",   company: null,                          jobTitle: "Platform Owner",        status: "Active",   joined: "01 Jan 2023" },
+  { id: 2,  name: "Rachel Voss",      email: "rachel.voss@titansteel.com",        role: "Company Admin", company: COMPANIES[0].name,             jobTitle: "Safety Director",        status: "Active",   joined: "18 Jan 2024" },
+  { id: 3,  name: "Devon Marsh",      email: "devon.marsh@titansteel.com",        role: "Employee",      company: COMPANIES[0].name,             jobTitle: "Excavation Foreman",     status: "Active",   joined: "22 Jan 2024" },
+  { id: 4,  name: "Lucia Ferreira",   email: "lucia.f@titansteel.com",            role: "Employee",      company: COMPANIES[0].name,             jobTitle: "Site Crew",              status: "Active",   joined: "02 Feb 2024" },
+  { id: 5,  name: "Marcus Ibe",       email: "marcus@coastalexcavation.com",      role: "Company Admin", company: COMPANIES[1].name,             jobTitle: "Operations Manager",     status: "Active",   joined: "02 Apr 2024" },
+  { id: 6,  name: "Sam Whitfield",    email: "sam.w@coastalexcavation.com",       role: "Employee",      company: COMPANIES[1].name,             jobTitle: "Equipment Operator",     status: "Suspended", joined: "10 Apr 2024" },
+  { id: 7,  name: "Denise Falk",      email: "denise.falk@apexelectrical.com",    role: "Company Admin", company: COMPANIES[2].name,             jobTitle: "HSE Manager",            status: "Active",   joined: "30 Jun 2024" },
+  { id: 8,  name: "Owen Pratt",       email: "owen.pratt@northbridge.com",        role: "Company Admin", company: COMPANIES[3].name,             jobTitle: "Regional Safety Lead",   status: "Active",   joined: "11 Sep 2023" },
+  { id: 9,  name: "Casey Mullen",     email: "casey@summitroofing.com",           role: "Company Admin", company: COMPANIES[4].name,             jobTitle: "Owner",                  status: "Invited",  joined: "05 Feb 2025" },
+  { id: 10, name: "Priya Nandan",     email: "priya.nandan@ironcladis.com",       role: "Company Admin", company: COMPANIES[5].name,             jobTitle: "Plant Safety Manager",   status: "Active",   joined: "19 Nov 2023" },
+  { id: 11, name: "Todd Warrick",     email: "todd.warrick@beaconenergy.com",     role: "Company Admin", company: COMPANIES[6].name,             jobTitle: "Field Ops Director",     status: "Active",   joined: "27 Jul 2023" },
+  { id: 12, name: "Hal Fenwick",      email: "hal.fenwick@vanguardpipeline.com",  role: "Company Admin", company: COMPANIES[8].name,             jobTitle: "QA/QC Manager",          status: "Active",   joined: "08 Mar 2024" },
+  { id: 13, name: "Jordan Blake",     email: "jordan.blake@gmail.com",            role: "Employee",      company: null,                          jobTitle: "Independent Contractor", status: "Active",   joined: "14 Jul 2025" },
 ];
 
 type ModalState =
   | { type: "view";    user: AppUser }
   | { type: "add" }
-  | { type: "bulk" }
   | { type: "merge" }
   | { type: "reset";   user: AppUser }
   | { type: "move";    user: AppUser }
@@ -84,7 +83,6 @@ function UserViewContent({ user }: { user: AppUser }) {
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             <Badge variant={roleBadge(user.role)}>{user.role}</Badge>
             <Badge variant={statusBadge(user.status)}>{user.status}</Badge>
-            {user.competentPerson && <Badge variant="orange">Competent Person</Badge>}
           </div>
         </div>
       </div>
@@ -101,18 +99,13 @@ function UserViewContent({ user }: { user: AppUser }) {
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: "Courses Assigned", value: "6" },
-          { label: "Forms Submitted", value: "42" },
-          { label: "Certificates", value: "4" },
-        ].map((s) => (
-          <div key={s.label} className="rounded-lg bg-gray-50 p-3 text-center">
-            <p className="text-lg font-bold text-gray-900">{s.value}</p>
-            <p className="text-xs text-gray-400">{s.label}</p>
-          </div>
-        ))}
-      </div>
+      {user.role === "Employee" && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50 px-3.5 py-3 text-xs text-blue-700">
+          <FaInfoCircle size={13} className="mt-0.5 shrink-0" />
+          This is an employee account, managed day-to-day by {user.company ?? "their"} Company Admin. Shown here read-only for
+          troubleshooting, account recovery, or security response — deeper account actions run through Support Access.
+        </div>
+      )}
     </div>
   );
 }
@@ -125,41 +118,20 @@ function AddUserContent() {
         <div><FieldLabel>Email</FieldLabel><FieldInput type="email" placeholder="john@client.com" /></div>
         <div>
           <FieldLabel>Role</FieldLabel>
-          <FieldSelect><option>Employee</option><option>Company Admin</option><option>Super Admin</option></FieldSelect>
+          <FieldSelect><option>Company Admin</option><option>Super Admin</option></FieldSelect>
         </div>
         <div>
           <FieldLabel>Company</FieldLabel>
           <FieldSelect>
-            <option>— Individual account —</option>
+            <option>— Bastion internal (Super Admin only) —</option>
             {COMPANIES.map((c) => <option key={c.id}>{c.name}</option>)}
           </FieldSelect>
         </div>
-        <div><FieldLabel>Job Title</FieldLabel><FieldInput placeholder="e.g. Excavation Foreman" /></div>
-        <div><FieldLabel>Site / Location</FieldLabel><FieldInput placeholder="e.g. Charlotte Yard" /></div>
+        <div className="col-span-2"><FieldLabel>Job Title</FieldLabel><FieldInput placeholder="e.g. Safety Director" /></div>
       </div>
-      <label className="flex items-center gap-2.5 rounded-lg border border-gray-200 px-3.5 py-2.5">
-        <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-        <span className="text-sm text-gray-700">Flag as competent person / supervisor</span>
-      </label>
-    </div>
-  );
-}
-
-function BulkImportContent() {
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 py-10 text-center hover:border-blue-300 transition-colors cursor-pointer">
-        <FaUpload size={20} className="text-gray-300" />
-        <p className="text-sm font-medium text-gray-600">Drop a CSV or Excel file, or click to browse</p>
-        <p className="text-xs text-gray-400">Name, Email, Role, Company, Job Title, Site columns expected</p>
-      </div>
-      <div>
-        <FieldLabel>Target Company</FieldLabel>
-        <FieldSelect>{COMPANIES.map((c) => <option key={c.id}>{c.name}</option>)}</FieldSelect>
-      </div>
-      <div className="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50 px-3.5 py-3 text-xs text-blue-700">
-        <FaCheckCircle size={13} className="mt-0.5 shrink-0" />
-        Every row is validated for duplicate emails and missing required fields before anything is saved.
+      <div className="flex items-start gap-2.5 rounded-lg border border-gray-200 px-3.5 py-3 text-xs text-gray-500">
+        <FaInfoCircle size={13} className="mt-0.5 shrink-0" />
+        Employee accounts are created by each company's own Company Admin, not from here.
       </div>
     </div>
   );
@@ -168,14 +140,14 @@ function BulkImportContent() {
 function MergeContent() {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Select two accounts that represent the same person. Training history, submissions and certificates are combined onto the primary account.</p>
+      <p className="text-sm text-gray-500">Select two accounts that represent the same person. Admin history is combined onto the primary account.</p>
       <div>
         <FieldLabel>Primary account (kept)</FieldLabel>
-        <FieldSelect>{USERS.map((u) => <option key={u.id}>{u.name} — {u.email}</option>)}</FieldSelect>
+        <FieldSelect>{USERS.filter((u) => u.role !== "Employee").map((u) => <option key={u.id}>{u.name} — {u.email}</option>)}</FieldSelect>
       </div>
       <div>
         <FieldLabel>Duplicate account (merged in, then removed)</FieldLabel>
-        <FieldSelect>{USERS.map((u) => <option key={u.id}>{u.name} — {u.email}</option>)}</FieldSelect>
+        <FieldSelect>{USERS.filter((u) => u.role !== "Employee").map((u) => <option key={u.id}>{u.name} — {u.email}</option>)}</FieldSelect>
       </div>
       <div className="flex items-start gap-2.5 rounded-lg border border-yellow-100 bg-yellow-50 px-3.5 py-3 text-xs text-yellow-700">
         <FaExclamationCircle size={13} className="mt-0.5 shrink-0" />
@@ -202,7 +174,7 @@ function ResetPasswordContent({ user }: { user: AppUser }) {
 function MoveCompanyContent({ user }: { user: AppUser }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">Move {user.name} to a different company. Their training history and certificates travel with them.</p>
+      <p className="text-sm text-gray-500">Move {user.name} to a different company.</p>
       <div>
         <FieldLabel>Current Company</FieldLabel>
         <FieldInput value={user.company ?? "— Individual account —"} disabled />
@@ -226,9 +198,7 @@ function SuspendContent({ user }: { user: AppUser }) {
             {suspending ? `Deactivate ${user.name}?` : `Reactivate ${user.name}?`}
           </p>
           <p className="mt-0.5 text-xs text-gray-500">
-            {suspending
-              ? "This frees their seat and blocks access immediately. Their training records are kept."
-              : "The user will regain full platform access and their seat is re-allocated."}
+            {suspending ? "This blocks admin access immediately." : "The user will regain full admin access."}
           </p>
         </div>
       </div>
@@ -244,35 +214,33 @@ function SuspendContent({ user }: { user: AppUser }) {
 
 /* ── Page ────────────────────────────────────────────────────────────── */
 
-export default function Users() {
-  const [search, setSearch]             = useState("");
-  const [roleFilter, setRoleFilter]     = useState("All");
-  const [companyFilter, setCompanyFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [modal, setModal]               = useState<ModalState>(null);
+export default function ClientAdministrators() {
+  const [search, setSearch]               = useState("");
+  const [companyFilter, setCompanyFilter]  = useState("All");
+  const [statusFilter, setStatusFilter]    = useState("All");
+  const [includeEmployees, setIncludeEmployees] = useState(false);
+  const [modal, setModal]                  = useState<ModalState>(null);
 
-  const filtered = USERS.filter(
+  const base = includeEmployees ? USERS : USERS.filter((u) => u.role !== "Employee");
+  const filtered = base.filter(
     (u) =>
       (u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) &&
-      (roleFilter === "All" || u.role === roleFilter) &&
       (companyFilter === "All" || u.company === companyFilter) &&
       (statusFilter === "All" || u.status === statusFilter)
   );
 
   const modalTitle =
-    modal?.type === "view"    ? "User Details"        :
-    modal?.type === "add"     ? "Add User"             :
-    modal?.type === "bulk"    ? "Bulk Import Users"     :
+    modal?.type === "view"    ? "Account Details"        :
+    modal?.type === "add"     ? "Add Administrator"       :
     modal?.type === "merge"   ? "Merge Duplicate Accounts" :
-    modal?.type === "reset"   ? "Reset Password"        :
-    modal?.type === "move"    ? "Move to Another Company" :
+    modal?.type === "reset"   ? "Reset Password"           :
+    modal?.type === "move"    ? "Move to Another Company"  :
     modal?.type === "suspend" ? (modal.user.status === "Active" ? "Deactivate User" : "Activate User") : "";
 
   const modalFooter = modal ? (
     <>
       <ModalBtn variant="secondary" onClick={() => setModal(null)}>Cancel</ModalBtn>
-      {modal.type === "add"     && <ModalBtn variant="primary">Add User</ModalBtn>}
-      {modal.type === "bulk"    && <ModalBtn variant="primary">Import Users</ModalBtn>}
+      {modal.type === "add"     && <ModalBtn variant="primary">Add Administrator</ModalBtn>}
       {modal.type === "merge"   && <ModalBtn variant="primary">Merge Accounts</ModalBtn>}
       {modal.type === "reset"   && <ModalBtn variant="primary">Send Reset Link</ModalBtn>}
       {modal.type === "move"    && <ModalBtn variant="primary">Move User</ModalBtn>}
@@ -288,8 +256,8 @@ export default function Users() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="mt-1 text-sm text-gray-500">Every account on the platform — Super Admins, Company Admins and Employees.</p>
+          <h1 className="text-2xl font-bold text-gray-900">Client Administrators</h1>
+          <p className="mt-1 text-sm text-gray-500">Super Admin and Company Admin accounts. Employee accounts are managed inside each company's own workspace.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -299,16 +267,10 @@ export default function Users() {
             <FaRandom size={12} /> Merge Duplicates
           </button>
           <button
-            onClick={() => setModal({ type: "bulk" })}
-            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
-          >
-            <FaUpload size={12} /> Bulk Import
-          </button>
-          <button
             onClick={() => setModal({ type: "add" })}
             className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
           >
-            <FaPlus size={12} /> Add User
+            <FaPlus size={12} /> Add Administrator
           </button>
         </div>
       </div>
@@ -324,10 +286,6 @@ export default function Users() {
             className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
           />
         </div>
-        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
-          {["All", "Super Admin", "Company Admin", "Employee"].map((r) => <option key={r}>{r}</option>)}
-        </select>
         <select value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
           <option>All</option>
@@ -337,6 +295,9 @@ export default function Users() {
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
           {["All", "Active", "Suspended", "Invited"].map((s) => <option key={s}>{s}</option>)}
         </select>
+        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
+          <Toggle checked={includeEmployees} onChange={setIncludeEmployees} label="Include employees (search only)" />
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -344,14 +305,14 @@ export default function Users() {
           <table className="min-w-full">
             <thead className="bg-gray-50/70">
               <tr>
-                {["User", "Role", "Company", "Competent Person", "Status", "Actions"].map((h) => (
+                {["User", "Role", "Company", "Status", "Actions"].map((h) => (
                   <th key={h} className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.length === 0 ? (
-                <tr><td colSpan={6} className="px-5 py-8 text-center text-sm text-gray-400">No users match your filters.</td></tr>
+                <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-400">No accounts match your filters.</td></tr>
               ) : filtered.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50/60 transition-colors">
                   <td className="px-5 py-3.5">
@@ -367,22 +328,26 @@ export default function Users() {
                   </td>
                   <td className="px-5 py-3.5"><Badge variant={roleBadge(u.role)}>{u.role}</Badge></td>
                   <td className="whitespace-nowrap px-5 py-3.5 text-sm text-gray-600">{u.company ?? "—"}</td>
-                  <td className="px-5 py-3.5">{u.competentPerson ? <Badge variant="orange">Yes</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
                   <td className="px-5 py-3.5"><Badge variant={statusBadge(u.status)}>{u.status}</Badge></td>
                   <td className="px-5 py-3.5">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium">
                       <button onClick={() => setModal({ type: "view", user: u })} className="text-blue-600 hover:text-blue-800 transition-colors">View</button>
-                      {u.status === "Invited" && (
-                        <button className="text-green-600 hover:text-green-800 transition-colors">Resend Invite</button>
+                      {u.role !== "Employee" && (
+                        <>
+                          {u.status === "Invited" && (
+                            <button className="text-green-600 hover:text-green-800 transition-colors">Resend Invite</button>
+                          )}
+                          <button onClick={() => setModal({ type: "reset", user: u })} className="text-gray-500 hover:text-gray-800 transition-colors">Reset PW</button>
+                          {u.company && (
+                            <button onClick={() => setModal({ type: "move", user: u })} className="text-gray-500 hover:text-gray-800 transition-colors">Move</button>
+                          )}
+                          <button onClick={() => setModal({ type: "suspend", user: u })}
+                            className={u.status === "Active" ? "text-red-500 hover:text-red-700 transition-colors" : "text-green-500 hover:text-green-700 transition-colors"}>
+                            {u.status === "Active" ? "Deactivate" : "Activate"}
+                          </button>
+                        </>
                       )}
-                      <button onClick={() => setModal({ type: "reset", user: u })} className="text-gray-500 hover:text-gray-800 transition-colors">Reset PW</button>
-                      {u.company && (
-                        <button onClick={() => setModal({ type: "move", user: u })} className="text-gray-500 hover:text-gray-800 transition-colors">Move</button>
-                      )}
-                      <button onClick={() => setModal({ type: "suspend", user: u })}
-                        className={u.status === "Active" ? "text-red-500 hover:text-red-700 transition-colors" : "text-green-500 hover:text-green-700 transition-colors"}>
-                        {u.status === "Active" ? "Deactivate" : "Activate"}
-                      </button>
+                      {u.role === "Employee" && <span className="text-gray-300">Managed by Company Admin</span>}
                     </div>
                   </td>
                 </tr>
@@ -391,14 +356,13 @@ export default function Users() {
           </table>
         </div>
         <div className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400">
-          Showing {filtered.length} of {USERS.length} users
+          Showing {filtered.length} of {base.length} accounts
         </div>
       </div>
 
       <Modal isOpen={modal !== null} onClose={() => setModal(null)} title={modalTitle} footer={modalFooter}>
         {modal?.type === "view"    && <UserViewContent user={modal.user} />}
         {modal?.type === "add"     && <AddUserContent />}
-        {modal?.type === "bulk"    && <BulkImportContent />}
         {modal?.type === "merge"   && <MergeContent />}
         {modal?.type === "reset"   && <ResetPasswordContent user={modal.user} />}
         {modal?.type === "move"    && <MoveCompanyContent user={modal.user} />}
@@ -407,4 +371,3 @@ export default function Users() {
     </div>
   );
 }
-

@@ -1,3 +1,19 @@
+export type Ownership =
+  | "Bastion Master"
+  | "Client Exclusive"
+  | "Shared Content"
+  | "Client Editable Copy"
+  | "Locked Client Copy";
+
+export interface VersionEntry {
+  version: string;
+  date: string;
+  author: string;
+  reviewer: string;
+  summary: string;
+  publicationState: "Published" | "Draft" | "Archived";
+}
+
 export const COURSE_CATEGORIES = [
   "Excavation & Trenching",
   "Fall Protection",

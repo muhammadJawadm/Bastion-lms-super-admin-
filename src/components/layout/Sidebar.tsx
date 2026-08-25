@@ -3,9 +3,9 @@ import {
   FaThLarge, FaUsers, FaBuilding,
   FaCog, FaBell,
   FaTimes, FaChevronLeft, FaChevronRight,
-  FaGraduationCap, FaClipboardList, FaTasks,
-  FaFileAlt,
-  FaCertificate, FaFileInvoiceDollar,
+  FaGraduationCap, FaClipboardList, FaClipboardCheck,
+  FaShareSquare, FaFileInvoiceDollar, FaChartBar,
+  FaHistory, FaHeadset,
 } from "react-icons/fa";
 import logo from "../../assets/logo.png";
 
@@ -19,34 +19,36 @@ const navGroups = [
   {
     label: "Clients",
     items: [
-      { label: "Companies", path: "/companies", icon: <FaBuilding size={15} /> },
-      { label: "Users",     path: "/users",      icon: <FaUsers size={15} />    },
+      { label: "Companies",             path: "/companies", icon: <FaBuilding size={15} /> },
+      { label: "Client Administrators", path: "/admins",    icon: <FaUsers size={15} />    },
     ],
   },
   {
-    label: "Training & Forms",
+    label: "Content Production",
     items: [
-      { label: "Courses",   path: "/courses",     icon: <FaGraduationCap size={15} /> },
-      { label: "Template Library", path: "/templates",   icon: <FaClipboardList size={15} /> },
-      { label: "Assignments",      path: "/assignments", icon: <FaTasks size={15} />         },
+      { label: "Content Requests", path: "/content-requests", icon: <FaClipboardCheck size={15} /> },
+      { label: "Courses",          path: "/courses",          icon: <FaGraduationCap size={15} />  },
+      { label: "Forms",            path: "/forms",             icon: <FaClipboardList size={15} /> },
     ],
   },
   {
-    label: "Field Operations",
+    label: "Distribution",
     items: [
-      { label: "Submitted Forms", path: "/submissions", icon: <FaFileAlt size={15} />    },
-    ],
-  },
-  {
-    label: "Catalog",
-    items: [
-      { label: "Certificate Manager", path: "/certificates", icon: <FaCertificate size={15} /> },
+      { label: "Client Deliveries", path: "/deliveries", icon: <FaShareSquare size={15} /> },
     ],
   },
   {
     label: "Business",
     items: [
-      { label: "Billing", path: "/billing", icon: <FaFileInvoiceDollar size={15} /> },
+      { label: "Billing & Contracts", path: "/billing",   icon: <FaFileInvoiceDollar size={15} /> },
+      { label: "Analytics",           path: "/analytics", icon: <FaChartBar size={15} />          },
+    ],
+  },
+  {
+    label: "Governance",
+    items: [
+      { label: "Audit Log",       path: "/audit-log",      icon: <FaHistory size={15} /> },
+      { label: "Support Access",  path: "/support-access", icon: <FaHeadset size={15} /> },
     ],
   },
   {

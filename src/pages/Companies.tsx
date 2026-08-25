@@ -6,9 +6,10 @@ import { Modal, FieldLabel, FieldInput, FieldSelect, ModalBtn } from "../compone
 import { COMPANIES, type Company } from "../data/companies";
 import { FaSearch, FaPlus, FaBuilding, FaEye } from "react-icons/fa";
 
-function statusBadge(s: Company["status"]): "success" | "danger" | "neutral" {
+function statusBadge(s: Company["status"]): "success" | "danger" | "info" | "neutral" {
   if (s === "Active") return "success";
   if (s === "Suspended") return "danger";
+  if (s === "Onboarding") return "info";
   return "neutral";
 }
 function paymentBadge(p: Company["paymentStatus"]): "success" | "warning" | "danger" {
@@ -20,28 +21,76 @@ function healthDot(h: Company["health"]) {
   return h === "green" ? "bg-green-500" : h === "amber" ? "bg-yellow-500" : "bg-red-500";
 }
 
+function SectionHeading({ children }: { children: React.ReactNode }) {
+  return <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400 border-b border-gray-100 pb-2">{children}</p>;
+}
+
 function AddCompanyContent() {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div><FieldLabel>Company Name</FieldLabel><FieldInput placeholder="e.g. Titan Steel Erectors" /></div>
-        <div>
-          <FieldLabel>Industry</FieldLabel>
-          <FieldSelect>
-            {["Construction", "Excavation", "Electrical", "Utilities", "Manufacturing", "Oil & Gas", "Roofing", "Demolition"].map((i) => (
-              <option key={i}>{i}</option>
-            ))}
-          </FieldSelect>
+    <div className="space-y-6">
+      <div>
+        <SectionHeading>Company &amp; Contact</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <div><FieldLabel>Company Name</FieldLabel><FieldInput placeholder="e.g. Titan Steel Erectors" /></div>
+          <div>
+            <FieldLabel>Industry</FieldLabel>
+            <FieldSelect>
+              {["Construction", "Excavation", "Electrical", "Utilities", "Manufacturing", "Oil & Gas", "Roofing", "Demolition"].map((i) => (
+                <option key={i}>{i}</option>
+              ))}
+            </FieldSelect>
+          </div>
+          <div><FieldLabel>Primary Contact Name</FieldLabel><FieldInput placeholder="e.g. Jane Doe" /></div>
+          <div><FieldLabel>Contact Email</FieldLabel><FieldInput type="email" placeholder="jane@client.com" /></div>
+          <div className="col-span-2"><FieldLabel>Company Admin Email</FieldLabel><FieldInput type="email" placeholder="admin@client.com — invited once the workspace is created" /></div>
         </div>
-        <div>
-          <FieldLabel>Plan</FieldLabel>
-          <FieldSelect><option>Starter</option><option>Professional</option><option>Enterprise</option></FieldSelect>
-        </div>
-        <div><FieldLabel>Seat Count</FieldLabel><FieldInput type="number" placeholder="e.g. 50" /></div>
-        <div><FieldLabel>Primary Contact Name</FieldLabel><FieldInput placeholder="e.g. Jane Doe" /></div>
-        <div><FieldLabel>Contact Email</FieldLabel><FieldInput type="email" placeholder="jane@client.com" /></div>
       </div>
-      <div><FieldLabel>Contract Start Date</FieldLabel><FieldInput type="date" /></div>
+
+      <div>
+        <SectionHeading>Entitlements</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <FieldLabel>Plan</FieldLabel>
+            <FieldSelect><option>Starter</option><option>Professional</option><option>Enterprise</option></FieldSelect>
+          </div>
+          <div><FieldLabel>Seat Count</FieldLabel><FieldInput type="number" placeholder="e.g. 50" /></div>
+          <div><FieldLabel>Custom Content Allowance</FieldLabel><FieldInput type="number" placeholder="e.g. 3" /></div>
+          <div><FieldLabel>Storage Limit</FieldLabel><FieldInput placeholder="e.g. 50 GB" /></div>
+          <div><FieldLabel>Contract Start Date</FieldLabel><FieldInput type="date" /></div>
+          <div><FieldLabel>Contract Renewal Date</FieldLabel><FieldInput type="date" /></div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-4">
+          {["Reporting Access", "Mobile Access"].map((f) => (
+            <label key={f} className="flex items-center gap-2 text-sm text-gray-600">
+              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-blue-600" /> {f}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <SectionHeading>Billing Profile</SectionHeading>
+        <div className="grid grid-cols-2 gap-4">
+          <div><FieldLabel>Setup Fee ($)</FieldLabel><FieldInput type="number" placeholder="0" /></div>
+          <div><FieldLabel>Content Development Fee ($)</FieldLabel><FieldInput type="number" placeholder="0" /></div>
+          <div>
+            <FieldLabel>Billing Frequency</FieldLabel>
+            <FieldSelect><option>Monthly</option><option>Quarterly</option><option>Annual</option></FieldSelect>
+          </div>
+          <div><FieldLabel>Discount (%)</FieldLabel><FieldInput type="number" placeholder="0" /></div>
+          <div><FieldLabel>Purchase Order Reference</FieldLabel><FieldInput placeholder="e.g. PO-2026-0142" /></div>
+          <div><FieldLabel>Tax Information</FieldLabel><FieldInput placeholder="e.g. Tax-exempt, or EIN" /></div>
+          <div>
+            <FieldLabel>Payment Method</FieldLabel>
+            <FieldSelect><option>Card</option><option>ACH</option><option>Invoice / Manual</option><option>None on file</option></FieldSelect>
+          </div>
+          <div><FieldLabel>Billing Address</FieldLabel><FieldInput placeholder="Street, City, State, ZIP" /></div>
+        </div>
+        <p className="mt-3 text-xs text-gray-400">
+          Card and ACH details are collected through payment-provider-hosted fields, not this screen — only a masked
+          summary and processor token are stored.
+        </p>
+      </div>
     </div>
   );
 }
@@ -88,7 +137,7 @@ export default function Companies() {
         </div>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
-          {["All", "Active", "Suspended", "Archived"].map((s) => <option key={s}>{s}</option>)}
+          {["All", "Active", "Onboarding", "Suspended", "Archived"].map((s) => <option key={s}>{s}</option>)}
         </select>
         <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
@@ -161,6 +210,7 @@ export default function Companies() {
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
         title="Add Company"
+        size="lg"
         footer={
           <>
             <ModalBtn variant="secondary" onClick={() => setAddOpen(false)}>Cancel</ModalBtn>
