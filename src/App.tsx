@@ -1,22 +1,21 @@
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import Layout from "./components/layout/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Companies from "./pages/Companies";
 import CompanyDetail from "./pages/CompanyDetail";
-import ClientAdministrators from "./pages/ClientAdministrators";
-import ContentRequests from "./pages/ContentRequests";
-import ContentRequestDetail from "./pages/ContentRequestDetail";
+import Users from "./pages/Users";
+import Enrollments from "./pages/Enrollments";
+import Certificates from "./pages/Certificates";
+import Uploads from "./pages/Uploads";
 import CourseLibrary from "./pages/CourseLibrary";
 import CourseView from "./pages/CourseView";
 import Forms from "./pages/Forms";
 import FormView from "./pages/FormView";
-import ClientDeliveries from "./pages/ClientDeliveries";
 import Assignments from "./pages/Assignments";
 import Billing from "./pages/Billing";
+import BillingDetail from "./pages/BillingDetail";
 import Analytics from "./pages/Analytics";
-import AuditLog from "./pages/AuditLog";
-import SupportAccess from "./pages/SupportAccess";
 import Settings from "./pages/Settings";
 import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
@@ -30,22 +29,24 @@ const router = createBrowserRouter([
       { index: true,                       element: <Dashboard />            },
       { path: "companies",                 element: <Companies />            },
       { path: "companies/:id",             element: <CompanyDetail />        },
-      { path: "admins",                    element: <ClientAdministrators /> },
-      { path: "content-requests",          element: <ContentRequests />      },
-      { path: "content-requests/:id",      element: <ContentRequestDetail /> },
+      { path: "users",                     element: <Users />                },
+      { path: "admins",                    element: <Navigate to="/users" replace /> },
+      { path: "enrollments",               element: <Enrollments />          },
+      { path: "certificates",              element: <Certificates />         },
+      { path: "uploads",                   element: <Uploads />              },
       { path: "courses",                   element: <CourseLibrary />        },
       { path: "courses/:id",               element: <CourseView />           },
       { path: "forms",                     element: <Forms />                },
       { path: "forms/:id",                 element: <FormView />             },
-      { path: "deliveries",                element: <ClientDeliveries />     },
       { path: "billing",                   element: <Billing />              },
+      { path: "billing/:companyId",        element: <BillingDetail />        },
       { path: "analytics",                 element: <Analytics />            },
-      { path: "audit-log",                 element: <AuditLog />             },
-      { path: "support-access",            element: <SupportAccess />        },
       { path: "assignments",               element: <Assignments />          },
       { path: "settings",                  element: <Settings />             },
       { path: "profile",                   element: <Profile />              },
+      { path: "support-access",            element: <Navigate to="/settings" replace /> },
       { path: "notifications",             element: <Notifications />        },
+      { path: "*",                         element: <Navigate to="/" replace /> },
     ],
   },
 ]);

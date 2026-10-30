@@ -1,225 +1,96 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
+import { FaPlus, FaBuilding, FaEye } from "react-icons/fa";
 import { Badge } from "../components/ui/Badge";
-import { ProgressBar } from "../components/ui/ProgressBar";
-import { Modal, FieldLabel, FieldInput, FieldSelect, ModalBtn } from "../components/ui/Modal";
-import { COMPANIES, type Company } from "../data/companies";
-import { FaSearch, FaPlus, FaBuilding, FaEye } from "react-icons/fa";
+import { LoadingBlock, ErrorBlock, EmptyBlock } from "../components/ui/States";
+import { PageHeader, SearchInput, FilterSelect, TableCard, Th, Td, PrimaryButton } from "../components/ui/PageHeader";
+import { CreateCompanyModal } from "../components/data/CompanyModals";
+import { useApi, useDebounced } from "../lib/useApi";
+import { formatDate, INDUSTRIES } from "../lib/format";
+import type { ApiResponse, Company } from "../lib/types";
 
-function statusBadge(s: Company["status"]): "success" | "danger" | "info" | "neutral" {
-  if (s === "Active") return "success";
-  if (s === "Suspended") return "danger";
-  if (s === "Onboarding") return "info";
-  return "neutral";
-}
-function paymentBadge(p: Company["paymentStatus"]): "success" | "warning" | "danger" {
-  if (p === "Current") return "success";
-  if (p === "Overdue") return "warning";
-  return "danger";
-}
-function healthDot(h: Company["health"]) {
-  return h === "green" ? "bg-green-500" : h === "amber" ? "bg-yellow-500" : "bg-red-500";
-}
-
-function SectionHeading({ children }: { children: React.ReactNode }) {
-  return <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400 border-b border-gray-100 pb-2">{children}</p>;
-}
-
-function AddCompanyContent() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <SectionHeading>Company &amp; Contact</SectionHeading>
-        <div className="grid grid-cols-2 gap-4">
-          <div><FieldLabel>Company Name</FieldLabel><FieldInput placeholder="e.g. Titan Steel Erectors" /></div>
-          <div>
-            <FieldLabel>Industry</FieldLabel>
-            <FieldSelect>
-              {["Construction", "Excavation", "Electrical", "Utilities", "Manufacturing", "Oil & Gas", "Roofing", "Demolition"].map((i) => (
-                <option key={i}>{i}</option>
-              ))}
-            </FieldSelect>
-          </div>
-          <div><FieldLabel>Primary Contact Name</FieldLabel><FieldInput placeholder="e.g. Jane Doe" /></div>
-          <div><FieldLabel>Contact Email</FieldLabel><FieldInput type="email" placeholder="jane@client.com" /></div>
-          <div className="col-span-2"><FieldLabel>Company Admin Email</FieldLabel><FieldInput type="email" placeholder="admin@client.com — invited once the workspace is created" /></div>
-        </div>
-      </div>
-
-      <div>
-        <SectionHeading>Entitlements</SectionHeading>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <FieldLabel>Plan</FieldLabel>
-            <FieldSelect><option>Starter</option><option>Professional</option><option>Enterprise</option></FieldSelect>
-          </div>
-          <div><FieldLabel>Seat Count</FieldLabel><FieldInput type="number" placeholder="e.g. 50" /></div>
-          <div><FieldLabel>Custom Content Allowance</FieldLabel><FieldInput type="number" placeholder="e.g. 3" /></div>
-          <div><FieldLabel>Storage Limit</FieldLabel><FieldInput placeholder="e.g. 50 GB" /></div>
-          <div><FieldLabel>Contract Start Date</FieldLabel><FieldInput type="date" /></div>
-          <div><FieldLabel>Contract Renewal Date</FieldLabel><FieldInput type="date" /></div>
-        </div>
-        <div className="mt-3 flex flex-wrap gap-4">
-          {["Reporting Access", "Mobile Access"].map((f) => (
-            <label key={f} className="flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" defaultChecked className="h-4 w-4 rounded border-gray-300 text-blue-600" /> {f}
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <SectionHeading>Billing Profile</SectionHeading>
-        <div className="grid grid-cols-2 gap-4">
-          <div><FieldLabel>Setup Fee ($)</FieldLabel><FieldInput type="number" placeholder="0" /></div>
-          <div><FieldLabel>Content Development Fee ($)</FieldLabel><FieldInput type="number" placeholder="0" /></div>
-          <div>
-            <FieldLabel>Billing Frequency</FieldLabel>
-            <FieldSelect><option>Monthly</option><option>Quarterly</option><option>Annual</option></FieldSelect>
-          </div>
-          <div><FieldLabel>Discount (%)</FieldLabel><FieldInput type="number" placeholder="0" /></div>
-          <div><FieldLabel>Purchase Order Reference</FieldLabel><FieldInput placeholder="e.g. PO-2026-0142" /></div>
-          <div><FieldLabel>Tax Information</FieldLabel><FieldInput placeholder="e.g. Tax-exempt, or EIN" /></div>
-          <div>
-            <FieldLabel>Payment Method</FieldLabel>
-            <FieldSelect><option>Card</option><option>ACH</option><option>Invoice / Manual</option><option>None on file</option></FieldSelect>
-          </div>
-          <div><FieldLabel>Billing Address</FieldLabel><FieldInput placeholder="Street, City, State, ZIP" /></div>
-        </div>
-        <p className="mt-3 text-xs text-gray-400">
-          Card and ACH details are collected through payment-provider-hosted fields, not this screen — only a masked
-          summary and processor token are stored.
-        </p>
-      </div>
-    </div>
-  );
-}
+const LOGO_COLORS = ["bg-blue-600", "bg-emerald-600", "bg-indigo-600", "bg-orange-500", "bg-slate-600", "bg-red-600", "bg-purple-600", "bg-cyan-600"];
+const logoColor = (id: string) => LOGO_COLORS[parseInt(id.slice(-2), 16) % LOGO_COLORS.length] ?? LOGO_COLORS[0];
 
 export default function Companies() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [planFilter, setPlanFilter] = useState("All");
+  const [status, setStatus] = useState("");
+  const [industry, setIndustry] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const q = useDebounced(search);
 
-  const filtered = COMPANIES.filter(
-    (c) =>
-      (c.name.toLowerCase().includes(search.toLowerCase()) || c.industry.toLowerCase().includes(search.toLowerCase())) &&
-      (statusFilter === "All" || c.status === statusFilter) &&
-      (planFilter === "All" || c.plan === planFilter)
-  );
+  // GET /admin/companies?search=&industry=&isActive= — search matches name, contact name and contact email.
+  const { data, loading, error, reload } = useApi<ApiResponse<Company[]>>("/admin/companies", { search: q, isActive: status, industry });
+  const companies = data?.data ?? [];
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Companies</h1>
-          <p className="mt-1 text-sm text-gray-500">Every client company on the platform, in one place.</p>
-        </div>
-        <button
-          onClick={() => setAddOpen(true)}
-          className="flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
-        >
-          <FaPlus size={12} /> Add Company
-        </button>
-      </div>
+      <PageHeader
+        title="Companies"
+        subtitle="Every client company on the platform."
+        actions={<PrimaryButton onClick={() => setAddOpen(true)}><FaPlus size={12} /> Add Company</PrimaryButton>}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex flex-1 min-w-50 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm">
-          <FaSearch size={13} className="shrink-0 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by company or industry..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 outline-none"
-          />
-        </div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
-          {["All", "Active", "Onboarding", "Suspended", "Archived"].map((s) => <option key={s}>{s}</option>)}
-        </select>
-        <select value={planFilter} onChange={(e) => setPlanFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none cursor-pointer">
-          {["All", "Starter", "Professional", "Enterprise"].map((p) => <option key={p}>{p}</option>)}
-        </select>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by company, contact name or email…" />
+        <FilterSelect value={status} onChange={setStatus} options={[{ value: "", label: "All statuses" }, { value: "true", label: "Active" }, { value: "false", label: "Inactive" }]} />
+        <FilterSelect value={industry} onChange={setIndustry} options={[{ value: "", label: "All industries" }, ...INDUSTRIES.map((i) => ({ value: i, label: i }))]} />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+      <TableCard footer={!loading && !error ? `${companies.length} compan${companies.length === 1 ? "y" : "ies"}` : undefined}>
+        {loading ? <LoadingBlock /> : error ? <ErrorBlock message={error} onRetry={reload} /> : companies.length === 0 ? (
+          <EmptyBlock label="No companies match your filters." />
+        ) : (
           <table className="min-w-full">
             <thead className="bg-gray-50/70">
-              <tr>
-                {["Company", "Plan", "Seats", "Completion", "Compliance", "Renewal", "Payment", "Status", "Actions"].map((h) => (
-                  <th key={h} className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>
-                ))}
-              </tr>
+              <tr><Th>Company</Th><Th>Primary contact</Th><Th>Location</Th><Th>Payment</Th><Th>Status</Th><Th>Created</Th><Th /></tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-8 text-center text-sm text-gray-400">No companies match your filters.</td></tr>
-              ) : filtered.map((c) => (
-                <tr
-                  key={c.id}
-                  onClick={() => navigate(`/companies/${c.id}`)}
-                  className="cursor-pointer hover:bg-gray-50/60 transition-colors"
-                >
-                  <td className="px-5 py-3.5">
+              {companies.map((c) => (
+                <tr key={c._id} onClick={() => navigate(`/companies/${c._id}`)} className="cursor-pointer hover:bg-gray-50/60">
+                  <Td>
                     <div className="flex items-center gap-3">
-                      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${c.logoColor}`}>
-                        <FaBuilding size={13} />
-                      </div>
+                      {c.branding?.logoUrl ? (
+                        <img src={c.branding.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-cover" />
+                      ) : (
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${logoColor(c._id)}`}><FaBuilding size={13} /></div>
+                      )}
                       <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${healthDot(c.health)}`} />
-                          <p className="truncate text-sm font-medium text-gray-900">{c.name}</p>
-                        </div>
-                        <p className="text-xs text-gray-400">{c.industry}</p>
+                        <p className="truncate font-medium text-gray-900">{c.name}</p>
+                        <p className="text-xs text-gray-400">{c.industry || "No industry set"}</p>
                       </div>
                     </div>
-                  </td>
-                  <td className="px-5 py-3.5"><Badge variant="info">{c.plan}</Badge></td>
-                  <td className="px-5 py-3.5 w-36">
-                    <p className="mb-1 text-xs text-gray-600">{c.seatsUsed} / {c.seatsBought}</p>
-                    <ProgressBar value={(c.seatsUsed / c.seatsBought) * 100} color="bg-indigo-500" />
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-gray-700">{c.completionRate}%</td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-sm font-medium text-gray-700">{c.complianceRate}%</td>
-                  <td className="whitespace-nowrap px-5 py-3.5 text-sm text-gray-500">{c.renewalDate}</td>
-                  <td className="px-5 py-3.5"><Badge variant={paymentBadge(c.paymentStatus)}>{c.paymentStatus}</Badge></td>
-                  <td className="px-5 py-3.5"><Badge variant={statusBadge(c.status)}>{c.status}</Badge></td>
-                  <td className="px-5 py-3.5">
+                  </Td>
+                  <Td>
+                    {c.contactName || c.contactEmail ? (
+                      <><p className="text-gray-800">{c.contactName || "—"}</p><p className="text-xs text-gray-400">{c.contactEmail}</p></>
+                    ) : <span className="text-gray-400">—</span>}
+                  </Td>
+                  <Td className="text-gray-500">{[c.city, c.state].filter(Boolean).join(", ") || "—"}</Td>
+                  <Td className="text-gray-500">{c.paymentMethods || "—"}</Td>
+                  <Td><Badge variant={c.isActive ? "success" : "danger"}>{c.isActive ? "Active" : "Inactive"}</Badge></Td>
+                  <Td className="whitespace-nowrap text-gray-500">{formatDate(c.createdAt)}</Td>
+                  <Td>
                     <button
-                      onClick={(e) => { e.stopPropagation(); navigate(`/companies/${c.id}`); }}
-                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/companies/${c._id}`); }}
+                      className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-50"
                     >
                       <FaEye size={11} /> View
                     </button>
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400">
-          Showing {filtered.length} of {COMPANIES.length} companies
-        </div>
-      </div>
+        )}
+      </TableCard>
 
-      <Modal
+      <CreateCompanyModal
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
-        title="Add Company"
-        size="lg"
-        footer={
-          <>
-            <ModalBtn variant="secondary" onClick={() => setAddOpen(false)}>Cancel</ModalBtn>
-            <ModalBtn variant="primary" onClick={() => setAddOpen(false)}>Create Company</ModalBtn>
-          </>
-        }
-      >
-        <AddCompanyContent />
-      </Modal>
+        onCreated={(id, notice) => navigate(`/companies/${id}`, { state: { notice } })}
+      />
     </div>
   );
 }

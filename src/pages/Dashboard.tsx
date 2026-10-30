@@ -1,188 +1,168 @@
+import { Link, useNavigate } from "react-router";
+import {
+  FaBuilding, FaBan, FaUserTie, FaUsers, FaGraduationCap, FaClipboardList,
+  FaUserGraduate, FaCheckCircle, FaExclamationTriangle, FaCertificate,
+} from "react-icons/fa";
 import { StatCard } from "../components/ui/StatCard";
 import { Badge } from "../components/ui/Badge";
-import { COMPANIES } from "../data/companies";
-import { COURSES } from "./CourseLibrary";
-import { FORMS } from "../data/forms";
-import { CONTENT_REQUESTS } from "../data/contentRequests";
-import { DISTRIBUTIONS } from "../data/distributions";
-import { AUDIT_LOG } from "../data/auditLog";
-import { SUPPORT_SESSIONS } from "../data/supportSessions";
-import {
-  FaBuilding, FaUserClock, FaBan, FaExclamationTriangle, FaSyncAlt,
-  FaDollarSign, FaFileInvoice, FaTimesCircle, FaUsers,
-  FaHistory, FaHeadset, FaShieldAlt, FaCloudUploadAlt,
-} from "react-icons/fa";
+import { ProgressBar } from "../components/ui/ProgressBar";
+import { LoadingBlock, ErrorBlock, EmptyBlock } from "../components/ui/States";
+import { PageHeader, TableCard, Th, Td } from "../components/ui/PageHeader";
+import { useApi } from "../lib/useApi";
+import { formatDate, formatDateTime, ROLE_LABEL } from "../lib/format";
+import type { ApiResponse, Certificate, Company, Course, Enrollment, Form, Paginated, User } from "../lib/types";
 
-const REFERENCE_DATE = new Date("2026-08-25");
-const RENEWAL_WINDOW_DAYS = 90;
-
-function daysUntil(dateStr: string): number | null {
-  if (!dateStr || dateStr === "—") return null;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return null;
-  return Math.round((d.getTime() - REFERENCE_DATE.getTime()) / (1000 * 60 * 60 * 24));
+// perPage=1 — we only want pagination.total from these.
+function useEnrollmentCount(status?: string) {
+  const { data } = useApi<Paginated<Enrollment>>("/enrollments", { status, perPage: 1 });
+  return data?.pagination.total;
 }
 
+const n = (v: number | undefined) => (v === undefined ? "…" : v.toLocaleString());
+
 export default function Dashboard() {
-  const active = COMPANIES.filter((c) => c.status === "Active").length;
-  const onboarding = COMPANIES.filter((c) => c.status === "Onboarding").length;
-  const suspended = COMPANIES.filter((c) => c.status === "Suspended").length;
-  const overdue = COMPANIES.filter((c) => c.paymentStatus !== "Current").length;
-  const renewalDue = COMPANIES.filter((c) => {
-    const d = daysUntil(c.renewalDate);
-    return d !== null && d <= RENEWAL_WINDOW_DAYS;
-  }).length;
+  const navigate = useNavigate();
+  const companiesQ = useApi<ApiResponse<Company[]>>("/admin/companies");
+  const usersQ = useApi<ApiResponse<User[]>>("/admin/users");
+  const coursesQ = useApi<ApiResponse<Course[]>>("/courses");
+  const formsQ = useApi<ApiResponse<Form[]>>("/forms");
+  const certsQ = useApi<ApiResponse<Certificate[]>>("/certificates");
+  const enrolTotal = useEnrollmentCount();
+  const enrolCompleted = useEnrollmentCount("completed");
+  const enrolInProgress = useEnrollmentCount("in_progress");
+  const enrolOverdue = useEnrollmentCount("overdue");
 
-  const pipelineStages = ["Requested", "Scoping", "In Development", "Internal Review", "Client Review", "Ready to Publish", "Published"] as const;
-  const pipelineCounts = pipelineStages.map((stage) => ({ stage, count: CONTENT_REQUESTS.filter((r) => r.status === stage).length }));
+  const companies = companiesQ.data?.data;
+  const users = usersQ.data?.data;
+  const courses = coursesQ.data?.data;
+  const forms = formsQ.data?.data;
+  const certs = certsQ.data?.data;
 
-  const upcomingDeadlines = [...CONTENT_REQUESTS]
-    .filter((r) => r.status !== "Published" && r.status !== "Cancelled")
-    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-    .slice(0, 5);
+  const activeCompanies = companies?.filter((c) => c.isActive).length;
+  const inactiveCompanies = companies?.filter((c) => !c.isActive).length;
+  const companyAdmins = users?.filter((u) => u.role === "client_admin").length;
+  const employees = users?.filter((u) => u.role === "user").length;
+  const publishedCourses = courses?.filter((c) => c.status === "published").length;
+  const libraryCourses = courses?.filter((c) => !c.companyId).length;
+  const publishedForms = forms?.filter((f) => f.status === "published").length;
+  const completionRate = enrolTotal ? Math.round(((enrolCompleted ?? 0) / enrolTotal) * 100) : 0;
 
-  const outdatedCompanies = Array.from(
-    new Set(DISTRIBUTIONS.filter((d) => d.clientVersion !== d.currentMasterVersion).map((d) => d.companyName))
-  );
+  // Per-company rollups for the overview table.
+  const countBy = <T,>(rows: T[] | undefined, key: (r: T) => string | null | undefined) => {
+    const m: Record<string, number> = {};
+    rows?.forEach((r) => { const k = key(r); if (k) m[k] = (m[k] ?? 0) + 1; });
+    return m;
+  };
+  const usersByCo = countBy(users?.filter((u) => u.role !== "platform_admin"), (u) => u.companyId);
+  const coursesByCo = countBy(courses, (c) => c.companyId);
+  const formsByCo = countBy(forms, (f) => f.companyId);
+  const certsByCo = countBy(certs, (c) => c.companyId);
+  const companyName: Record<string, string> = {};
+  companies?.forEach((c) => { companyName[c._id] = c.name; });
 
-  const mrr = COMPANIES.reduce((s, c) => s + c.billing.recurringPlatformFee * (1 - c.billing.discountPercent / 100), 0);
-  const outstandingInvoices = COMPANIES.reduce((s, c) => s + c.billing.outstandingBalance, 0);
-  const failedPayments = COMPANIES.filter((c) => c.paymentStatus === "Failed").length;
-  const seatLimitExceeded = COMPANIES.filter((c) => c.seatsUsed >= c.seatsBought).length;
+  const recentLogins = [...(users ?? [])]
+    .filter((u) => u.lastLoginAt)
+    .sort((a, b) => new Date(b.lastLoginAt!).getTime() - new Date(a.lastLoginAt!).getTime())
+    .slice(0, 6);
 
-  const openSupportSessions = SUPPORT_SESSIONS.filter((s) => s.endTime === null).length;
-  const securityAlerts = AUDIT_LOG.filter((e) => e.category === "Auth" && e.action.toLowerCase().includes("denied")).length;
-  const failedImports = 0;
-  const recentActivity = [...AUDIT_LOG].slice(0, 6);
+  const fatal = companiesQ.error;
 
   return (
     <div className="space-y-6">
+      <PageHeader title="Dashboard" subtitle="Live platform snapshot across every client company." />
+
+      {fatal && (
+        <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
+          <ErrorBlock message={fatal} onRetry={companiesQ.reload} />
+        </div>
+      )}
+
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-500">Bastion's platform snapshot — client health, content production and business oversight.</p>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Clients</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Active Companies" value={n(activeCompanies)} sub={`of ${n(companies?.length)} total`} icon={FaBuilding} iconBg="bg-green-50" iconColor="text-green-600" />
+          <StatCard label="Inactive Companies" value={n(inactiveCompanies)} sub="isActive = false" icon={FaBan} iconBg="bg-red-50" iconColor="text-red-500" subColor="text-red-500" />
+          <StatCard label="Company Admins" value={n(companyAdmins)} sub="client_admin accounts" icon={FaUserTie} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard label="Employees" value={n(employees)} sub="Mobile learners" icon={FaUsers} iconBg="bg-indigo-50" iconColor="text-indigo-600" />
+        </div>
       </div>
 
       <div>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Client Companies</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard label="Active"        value={String(active)}      sub={`of ${COMPANIES.length} companies`} icon={FaBuilding}      iconBg="bg-green-50"  iconColor="text-green-600" />
-          <StatCard label="Onboarding"    value={String(onboarding)}  sub="Provisioning in progress"           icon={FaUserClock}     iconBg="bg-blue-50"   iconColor="text-blue-600" subColor="text-blue-500" />
-          <StatCard label="Suspended"     value={String(suspended)}   sub="Access blocked"                     icon={FaBan}           iconBg="bg-red-50"    iconColor="text-red-500" subColor="text-red-500" />
-          <StatCard label="Overdue"       value={String(overdue)}     sub="Payment past due"                   icon={FaExclamationTriangle} iconBg="bg-orange-50" iconColor="text-orange-500" subColor="text-orange-500" />
-          <StatCard label="Renewal Due"   value={String(renewalDue)}  sub={`Within ${RENEWAL_WINDOW_DAYS} days`} icon={FaSyncAlt}      iconBg="bg-amber-50"  iconColor="text-amber-600" subColor="text-amber-600" />
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Content &amp; Learning</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Courses" value={n(courses?.length)} sub={`${n(publishedCourses)} published · ${n(libraryCourses)} in Bastion library`} icon={FaGraduationCap} iconBg="bg-blue-50" iconColor="text-blue-600" />
+          <StatCard label="Forms" value={n(forms?.length)} sub={`${n(publishedForms)} published`} icon={FaClipboardList} iconBg="bg-emerald-50" iconColor="text-emerald-600" />
+          <StatCard label="Enrollments" value={n(enrolTotal)} sub={`${n(enrolInProgress)} in progress`} icon={FaUserGraduate} iconBg="bg-violet-50" iconColor="text-violet-600" />
+          <StatCard label="Certificates" value={n(certs?.length)} sub="Issued across all clients" icon={FaCertificate} iconBg="bg-amber-50" iconColor="text-amber-600" />
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:col-span-1">
-          <h2 className="mb-3 text-sm font-semibold text-gray-800">Content Pipeline</h2>
-          <div className="space-y-2.5">
-            {pipelineCounts.map((row) => (
-              <div key={row.stage} className="flex items-center gap-3">
-                <span className="w-28 shrink-0 truncate text-xs text-gray-500">{row.stage}</span>
-                <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${(row.count / Math.max(1, CONTENT_REQUESTS.length)) * 100}%` }} />
-                </div>
-                <span className="w-5 shrink-0 text-right text-xs font-medium text-gray-700">{row.count}</span>
-              </div>
-            ))}
+        <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h2 className="mb-4 text-sm font-semibold text-gray-800">Training Completion</h2>
+          <p className="text-3xl font-bold text-gray-900">{enrolTotal === undefined ? "…" : `${completionRate}%`}</p>
+          <p className="mb-4 text-xs text-gray-400">of all enrollments completed</p>
+          <ProgressBar value={completionRate} color="bg-green-500" />
+          <div className="mt-5 space-y-2.5 text-sm">
+            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-gray-600"><FaCheckCircle size={12} className="text-green-500" /> Completed</span><span className="font-medium">{n(enrolCompleted)}</span></div>
+            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-gray-600"><FaUserGraduate size={12} className="text-blue-500" /> In progress</span><span className="font-medium">{n(enrolInProgress)}</span></div>
+            <div className="flex items-center justify-between"><span className="flex items-center gap-2 text-gray-600"><FaExclamationTriangle size={12} className="text-red-500" /> Overdue</span><span className="font-medium">{n(enrolOverdue)}</span></div>
           </div>
-          <p className="mt-3 text-xs text-gray-400">{COURSES.filter((c) => c.status === "Published").length} courses · {FORMS.filter((f) => f.status === "Published").length} forms published</p>
+          <Link to="/enrollments" className="mt-5 block text-xs font-semibold text-blue-600 hover:text-blue-800">View all enrollments →</Link>
         </div>
 
-        <div className="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-1">
-          <div className="border-b border-gray-100 px-5 py-3.5"><h2 className="text-sm font-semibold text-gray-800">Upcoming Production Deadlines</h2></div>
-          <ul className="divide-y divide-gray-50">
-            {upcomingDeadlines.length === 0 ? (
-              <li className="px-5 py-6 text-center text-sm text-gray-400">Nothing due.</li>
-            ) : upcomingDeadlines.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-gray-700">{r.title}</p>
-                  <p className="text-xs text-gray-400">{r.companyName}</p>
-                </div>
-                <span className="shrink-0 text-xs font-medium text-gray-500">{r.dueDate}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-1">
-          <div className="border-b border-gray-100 px-5 py-3.5"><h2 className="text-sm font-semibold text-gray-800">Clients on Outdated Content Versions</h2></div>
-          <ul className="divide-y divide-gray-50">
-            {outdatedCompanies.length === 0 ? (
-              <li className="px-5 py-6 text-center text-sm text-gray-400">Everyone is current.</li>
-            ) : outdatedCompanies.map((name) => (
-              <li key={name} className="flex items-center justify-between gap-3 px-5 py-3">
-                <p className="text-sm text-gray-700">{name}</p>
-                <Badge variant="warning">Outdated</Badge>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      <div>
-        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Business</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <StatCard label="Monthly Revenue"       value={`$${Math.round(mrr).toLocaleString()}`}    sub="Recurring platform fees"     icon={FaDollarSign}  iconBg="bg-green-50"  iconColor="text-green-600" subColor="text-green-600" />
-          <StatCard label="Outstanding Invoices"  value={`$${outstandingInvoices.toLocaleString()}`} sub="Across all clients"          icon={FaFileInvoice} iconBg="bg-orange-50" iconColor="text-orange-600" />
-          <StatCard label="Failed Payments"       value={String(failedPayments)}                     sub="Needs follow-up"             icon={FaTimesCircle} iconBg="bg-red-50"    iconColor="text-red-500" subColor="text-red-500" />
-          <StatCard label="Renewals Due"          value={String(renewalDue)}                         sub={`Within ${RENEWAL_WINDOW_DAYS} days`} icon={FaSyncAlt} iconBg="bg-amber-50"  iconColor="text-amber-600" />
-          <StatCard label="Seats Exceeded"        value={String(seatLimitExceeded)}                  sub="Over contracted seat count"  icon={FaUsers}       iconBg="bg-purple-50" iconColor="text-purple-600" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-gray-100 bg-white shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h2 className="text-sm font-semibold text-gray-800">Recent Super Admin Activity</h2>
-            <span className="text-xs text-gray-400">From Audit Log</span>
+            <h2 className="text-sm font-semibold text-gray-800">Recent Sign-ins</h2>
+            <Link to="/users" className="text-xs font-semibold text-blue-600 hover:text-blue-800">All users →</Link>
           </div>
-          <ul className="divide-y divide-gray-50">
-            {recentActivity.map((e) => (
-              <li key={e.id} className="flex items-start gap-3.5 px-5 py-3.5">
-                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-50">
-                  <FaHistory size={12} className="text-gray-400" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-700">{e.action}{e.affectedTenant ? ` — ${e.affectedTenant}` : ""}</p>
-                  <p className="mt-0.5 text-xs text-gray-400">{e.actor} · {e.timestamp}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          {usersQ.loading ? <LoadingBlock /> : usersQ.error ? <ErrorBlock message={usersQ.error} onRetry={usersQ.reload} /> : recentLogins.length === 0 ? (
+            <EmptyBlock label="Nobody has signed in yet." />
+          ) : (
+            <ul className="divide-y divide-gray-50">
+              {recentLogins.map((u) => (
+                <li key={u._id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-gray-800">{u.name} <span className="text-xs text-gray-400">· {ROLE_LABEL[u.role]}</span></p>
+                    <p className="truncate text-xs text-gray-400">{u.companyId ? companyName[u.companyId] ?? "Unknown company" : "Bastion"}</p>
+                  </div>
+                  <span className="shrink-0 text-xs text-gray-500">{formatDateTime(u.lastLoginAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+      </div>
 
-        <div className="space-y-4">
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50"><FaHeadset size={14} className="text-amber-600" /></div>
-              <div>
-                <p className="text-lg font-bold text-gray-900">{openSupportSessions}</p>
-                <p className="text-xs text-gray-500">Open support sessions</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50"><FaShieldAlt size={14} className="text-red-500" /></div>
-              <div>
-                <p className="text-lg font-bold text-gray-900">{securityAlerts}</p>
-                <p className="text-xs text-gray-500">Security alerts (7d)</p>
-              </div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50"><FaCloudUploadAlt size={14} className="text-gray-400" /></div>
-              <div>
-                <p className="text-lg font-bold text-gray-900">{failedImports}</p>
-                <p className="text-xs text-gray-500">Failed imports</p>
-              </div>
-            </div>
-          </div>
+      <div>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Companies Overview</h2>
+          <Link to="/companies" className="text-xs font-semibold text-blue-600 hover:text-blue-800">Manage companies →</Link>
         </div>
+        <TableCard>
+          {companiesQ.loading ? <LoadingBlock /> : !companies || companies.length === 0 ? (
+            <EmptyBlock label="No companies yet." />
+          ) : (
+            <table className="min-w-full">
+              <thead className="bg-gray-50/70">
+                <tr><Th>Company</Th><Th>Status</Th><Th>Users</Th><Th>Courses</Th><Th>Forms</Th><Th>Certificates</Th><Th>Created</Th></tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {companies.slice(0, 8).map((c) => (
+                  <tr key={c._id} onClick={() => navigate(`/companies/${c._id}`)} className="cursor-pointer hover:bg-gray-50/60">
+                    <Td><p className="font-medium text-gray-900">{c.name}</p><p className="text-xs text-gray-400">{c.industry || "—"}</p></Td>
+                    <Td><Badge variant={c.isActive ? "success" : "danger"}>{c.isActive ? "Active" : "Inactive"}</Badge></Td>
+                    <Td>{usersByCo[c._id] ?? 0}</Td>
+                    <Td>{coursesByCo[c._id] ?? 0}</Td>
+                    <Td>{formsByCo[c._id] ?? 0}</Td>
+                    <Td>{certsByCo[c._id] ?? 0}</Td>
+                    <Td className="whitespace-nowrap text-gray-500">{formatDate(c.createdAt)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </TableCard>
       </div>
     </div>
   );

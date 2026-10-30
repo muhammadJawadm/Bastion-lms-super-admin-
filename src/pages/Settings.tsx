@@ -3,6 +3,9 @@ import { FaSave, FaCheckCircle, FaPlus, FaTrash } from "react-icons/fa";
 import { Tabs } from "../components/ui/Tabs";
 import { Toggle } from "../components/ui/Toggle";
 import { FieldLabel, FieldInput, FieldSelect, FieldTextarea } from "../components/ui/Modal";
+import { Alert } from "../components/ui/States";
+import { SuperAdminsPanel } from "../components/settings/SuperAdminsPanel";
+import { SupportAccessPanel } from "../components/settings/SupportAccessPanel";
 
 const PERMISSION_SETS = [
   { name: "Content Team",   perms: "Create/edit courses & templates — no billing, no delete" },
@@ -14,7 +17,10 @@ const inputClass =
   "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 outline-none transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
 export default function Settings() {
-  const [tab, setTab] = useState("general");
+  const [tab, setTab] = useState("super-admins");
+  // Every tab except Super Admins is still mock — the backend has no settings or support-session API yet.
+  const isPreviewTab = tab !== "super-admins";
+  const hasSaveButton = ["general", "security", "permissions", "retention"].includes(tab);
 
   const [defaultLanguage, setDefaultLanguage] = useState("English");
   const [defaultExpiry, setDefaultExpiry]     = useState("12 months");
@@ -35,7 +41,7 @@ export default function Settings() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="mt-1 text-sm text-gray-500">Platform-wide configuration, security rules, and internal staff permissions.</p>
+        <p className="mt-1 text-sm text-gray-500">Super Admin accounts, support access, and platform-wide configuration.</p>
       </div>
 
       {saved && (
@@ -46,6 +52,8 @@ export default function Settings() {
 
       <Tabs
         tabs={[
+          { key: "super-admins", label: "Super Admins" },
+          { key: "support",   label: "Support Access" },
           { key: "general",   label: "General & Branding" },
           { key: "security",  label: "Security" },
           { key: "permissions", label: "Permission Sets" },
@@ -54,6 +62,16 @@ export default function Settings() {
         active={tab}
         onChange={setTab}
       />
+
+      {isPreviewTab && (
+        <Alert variant="warning">
+          <span className="font-semibold">Preview, mock data.</span> The backend has no API for this tab yet, so changes here aren't saved.
+        </Alert>
+      )}
+
+      {tab === "super-admins" && <SuperAdminsPanel />}
+
+      {tab === "support" && <SupportAccessPanel />}
 
       {tab === "general" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -136,7 +154,6 @@ export default function Settings() {
             <h2 className="text-base font-semibold text-red-800">Non-Negotiables</h2>
             <ul className="mt-3 space-y-2 text-sm text-red-700">
               <li>• Two-factor authentication is required on all Super Admin accounts.</li>
-              <li>• Audit logs cannot be edited or deleted by anyone, including Super Admins.</li>
               <li>• No client can ever see another client's data.</li>
               <li>• Submitted forms cannot be silently edited — every amendment is logged.</li>
             </ul>
@@ -189,14 +206,14 @@ export default function Settings() {
         </div>
       )}
 
-      <div className="flex justify-end border-t border-gray-100 pt-4">
+      {hasSaveButton && <div className="flex justify-end border-t border-gray-100 pt-4">
         <button
           onClick={handleSave}
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
         >
           <FaSave size={13} /> Save Changes
         </button>
-      </div>
+      </div>}
     </div>
   );
 }

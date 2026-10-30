@@ -1,13 +1,17 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import logo from "../assets/logo.png";
+import { request, errorMessage } from "../lib/api";
+import { getToken, setSession } from "../lib/session";
+import type { LoginResponse } from "../lib/types";
 
 export default function Login() {
-  const [email, setEmail]           = useState("admin@bastionlms.com");
+  const [params] = useSearchParams();
+  const [email, setEmail]           = useState("");
   const [password, setPassword]     = useState("");
   const [showPwd, setShowPwd]       = useState(false);
-  const [error, setError]           = useState("");
+  const [error, setError]           = useState(params.get("expired") ? "Your session expired. Please sign in again." : "");
   const [loading, setLoading]       = useState(false);
   const navigate = useNavigate();
 
@@ -15,14 +19,31 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    if (email === "admin@bastionlms.com" && password === "admin123") {
-      navigate("/");
-    } else {
-      setError("Invalid email or password. Check the demo credentials below.");
+    try {
+      const res = await request<LoginResponse>("/users/login", {
+        method: "POST",
+        auth: false,
+        // The backend's login lookup is case-sensitive, so normalise here.
+        body: { email: email.trim().toLowerCase(), password },
+      });
+      // Company Admins and employees can log in to the same API — this panel is Super Admin only.
+      if (res.data.role !== "platform_admin") {
+        setError("This account isn't a Super Admin. Use the Company Admin app instead.");
+        setLoading(false);
+        return;
+      }
+      setSession(res.token, res.data);
+      navigate("/", { replace: true });
+    } catch (err) {
+      // The API distinguishes "User does not exist" from "Invalid password" — don't echo that back.
+      // Anything else (unverified account, server/network error) is shown as-is.
+      const msg = errorMessage(err);
+      setError(msg === "User does not exist" || msg === "Invalid password" ? "Invalid email or password." : msg);
+      setLoading(false);
     }
-    setLoading(false);
   };
+
+  if (getToken()) return <Navigate to="/" replace />;
 
   return (
     <div
@@ -76,7 +97,8 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="admin@bastionlms.com"
+                  placeholder="you@bastionlms.com"
+                  autoComplete="email"
                   className="w-full rounded-lg border border-white/20 bg-white/10 py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/35 outline-none transition-all focus:border-white/50 focus:bg-white/15"
                 />
               </div>
@@ -96,6 +118,7 @@ export default function Login() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   className="w-full rounded-lg border border-white/20 bg-white/10 py-2.5 pl-10 pr-10 text-sm text-white placeholder-white/35 outline-none transition-all focus:border-white/50 focus:bg-white/15"
                 />
                 <button
@@ -116,17 +139,6 @@ export default function Login() {
               {loading ? "Signing in…" : "Sign In"}
             </button>
           </form>
-
-          {/* Demo credentials hint */}
-          <div className="mt-6 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5">
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-white/40">
-              Demo credentials
-            </p>
-            <div className="space-y-0.5 text-xs text-white/60">
-              <p>Email: <span className="font-medium text-white/80">admin@bastionlms.com</span></p>
-              <p>Password: <span className="font-medium text-white/80">admin123</span></p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

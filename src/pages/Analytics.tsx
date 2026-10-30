@@ -1,8 +1,7 @@
 import type { ElementType } from "react";
 import { COMPANIES } from "../data/companies";
-import { COURSES } from "./CourseLibrary";
+import { COURSES } from "../data/courses";
 import { FORMS } from "../data/forms";
-import { CONTENT_REQUESTS } from "../data/contentRequests";
 import {
   FaDollarSign, FaBuilding, FaGraduationCap, FaShieldAlt,
 } from "react-icons/fa";
@@ -69,8 +68,8 @@ export default function Analytics() {
     return { industry, avg, count: inGroup.length };
   }).sort((a, b) => b.avg - a.avg);
 
-  const pipelineCounts = ["Requested", "Scoping", "In Development", "Internal Review", "Client Review", "Ready to Publish", "Published"].map((stage) => ({
-    stage, count: CONTENT_REQUESTS.filter((r) => r.status === stage).length,
+  const byPlan = (["Starter", "Professional", "Enterprise"] as const).map((plan) => ({
+    plan, count: COMPANIES.filter((c) => c.plan === plan).length,
   }));
 
   return (
@@ -104,13 +103,13 @@ export default function Analytics() {
         </div>
 
         <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-gray-800">Content Pipeline</h2>
+          <h2 className="mb-3 text-sm font-semibold text-gray-800">Clients by Plan</h2>
           <div className="space-y-2.5">
-            {pipelineCounts.map((row) => (
-              <div key={row.stage} className="flex items-center gap-3">
-                <span className="w-32 shrink-0 truncate text-xs text-gray-500">{row.stage}</span>
+            {byPlan.map((row) => (
+              <div key={row.plan} className="flex items-center gap-3">
+                <span className="w-32 shrink-0 truncate text-xs text-gray-500">{row.plan}</span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${(row.count / Math.max(1, CONTENT_REQUESTS.length)) * 100}%` }} />
+                  <div className="h-full rounded-full bg-blue-500" style={{ width: `${(row.count / Math.max(1, COMPANIES.length)) * 100}%` }} />
                 </div>
                 <span className="w-6 shrink-0 text-right text-xs font-medium text-gray-700">{row.count}</span>
               </div>

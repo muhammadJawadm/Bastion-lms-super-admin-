@@ -1,70 +1,16 @@
 import { NavLink } from "react-router";
-import {
-  FaThLarge, FaUsers, FaBuilding,
-  FaCog, FaBell,
-  FaTimes, FaChevronLeft, FaChevronRight,
-  FaGraduationCap, FaClipboardList, FaClipboardCheck,
-  FaShareSquare, FaFileInvoiceDollar, FaChartBar,
-  FaHistory, FaHeadset,
-} from "react-icons/fa";
+import { FaTimes, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import logo from "../../assets/logo.png";
-
-const navGroups = [
-  {
-    label: null as string | null,
-    items: [
-      { label: "Dashboard", path: "/", icon: <FaThLarge size={15} /> },
-    ],
-  },
-  {
-    label: "Clients",
-    items: [
-      { label: "Companies",             path: "/companies", icon: <FaBuilding size={15} /> },
-      { label: "Client Administrators", path: "/admins",    icon: <FaUsers size={15} />    },
-    ],
-  },
-  {
-    label: "Content Production",
-    items: [
-      { label: "Content Requests", path: "/content-requests", icon: <FaClipboardCheck size={15} /> },
-      { label: "Courses",          path: "/courses",          icon: <FaGraduationCap size={15} />  },
-      { label: "Forms",            path: "/forms",             icon: <FaClipboardList size={15} /> },
-    ],
-  },
-  {
-    label: "Distribution",
-    items: [
-      { label: "Client Deliveries", path: "/deliveries", icon: <FaShareSquare size={15} /> },
-    ],
-  },
-  {
-    label: "Business",
-    items: [
-      { label: "Billing & Contracts", path: "/billing",   icon: <FaFileInvoiceDollar size={15} /> },
-      { label: "Analytics",           path: "/analytics", icon: <FaChartBar size={15} />          },
-    ],
-  },
-  {
-    label: "Governance",
-    items: [
-      { label: "Audit Log",       path: "/audit-log",      icon: <FaHistory size={15} /> },
-      { label: "Support Access",  path: "/support-access", icon: <FaHeadset size={15} /> },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { label: "Notifications",      path: "/notifications", icon: <FaBell size={15} />     },
-      { label: "Settings",           path: "/settings",      icon: <FaCog size={15} />      },
-    ],
-  },
-];
+import type { SessionUser } from "../../lib/types";
+import { initials } from "../../lib/format";
+import { navGroups } from "./navConfig";
 
 interface SidebarProps {
   isMobileOpen: boolean;
   onMobileClose: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  user: SessionUser | null;
 }
 
 export default function Sidebar({
@@ -72,6 +18,7 @@ export default function Sidebar({
   onMobileClose,
   isCollapsed,
   onToggleCollapse,
+  user,
 }: SidebarProps) {
   return (
     <>
@@ -116,7 +63,7 @@ export default function Sidebar({
           {navGroups.map((group, gi) => (
             <div key={gi} className={gi > 0 ? "mt-5" : ""}>
               {!isCollapsed && group.label && (
-                <p className="mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest text-white/40">
+                <p className={`mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-widest ${group.preview ? "text-amber-300/70" : "text-white/40"}`}>
                   {group.label}
                 </p>
               )}
@@ -136,7 +83,9 @@ export default function Sidebar({
                       ${isCollapsed ? "lg:justify-center lg:px-0" : ""}
                       ${isActive
                         ? "bg-white/20 text-white"
-                        : "text-white/75 hover:bg-white/10 hover:text-white"
+                        : group.preview
+                          ? "text-white/50 hover:bg-white/10 hover:text-white"
+                          : "text-white/75 hover:bg-white/10 hover:text-white"
                       }`
                     }
                   >
@@ -161,19 +110,19 @@ export default function Sidebar({
             <div className="flex justify-center">
               <div
                 className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold"
-                title="Admin"
+                title={user?.name ?? "Super Admin"}
               >
-                A
+                {initials(user?.name ?? "Super Admin")}
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 shrink-0 rounded-full bg-white/20 flex items-center justify-center text-sm font-semibold">
-                A
+                {initials(user?.name ?? "Super Admin")}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">Super Admin</p>
-                <p className="truncate text-xs text-white/55">admin@bastionlms.com</p>
+                <p className="truncate text-sm font-medium text-white">{user?.name ?? "Super Admin"}</p>
+                <p className="truncate text-xs text-white/55">{user?.email ?? ""}</p>
               </div>
             </div>
           )}

@@ -1,378 +1,201 @@
 import { useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
+import { FaArrowLeft, FaClipboardList, FaTrash, FaBuilding, FaFlag, FaChevronDown, FaChevronRight } from "react-icons/fa";
 import { Badge } from "../components/ui/Badge";
 import { Tabs } from "../components/ui/Tabs";
-import { Modal, FieldLabel, FieldInput, FieldSelect, ModalBtn } from "../components/ui/Modal";
-import { formById, type FormProduct, type FormField } from "../data/forms";
-import { COMPANIES } from "../data/companies";
-import { DISTRIBUTIONS, type DistributionRecord } from "../data/distributions";
-import type { Ownership } from "../data/catalog";
-import {
-  FaArrowLeft, FaTrash, FaPlus, FaArrowUp, FaArrowDown,
-  FaShareSquare, FaExclamationTriangle, FaInfoCircle,
-} from "react-icons/fa";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { LoadingBlock, ErrorBlock, EmptyBlock } from "../components/ui/States";
+import { DangerButton } from "../components/ui/PageHeader";
+import { api } from "../lib/api";
+import { useApi, useCompanyNames } from "../lib/useApi";
+import { formatDateTime, titleCase } from "../lib/format";
+import type { ApiResponse, Form, FormField, FormResponse, User } from "../lib/types";
 
-let fieldCounter = 100;
+function renderValue(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (Array.isArray(v)) return v.map(renderValue).join(", ");
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
 
-function statusBadge(s: string): "success" | "neutral" | "danger" {
-  if (s === "Published") return "success";
-  if (s === "Draft") return "neutral";
-  return "danger";
-}
-function ownershipBadge(o: Ownership): "danger" | "purple" | "info" | "orange" {
-  if (o === "Bastion Master") return "danger";
-  if (o === "Client Exclusive") return "purple";
-  if (o === "Locked Client Copy") return "orange";
-  return "info";
-}
-function InfoRow({ label, value }: { label: string; value: string }) {
+function ResponseRow({ r, fields, columns, userName }: {
+  r: FormResponse;
+  fields: Record<string, FormField>;
+  columns: Record<string, string>;
+  userName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const flagged = r.answers.filter((a) => a.flagged).length;
   return (
-    <div className="flex items-center justify-between gap-3 py-2">
-      <span className="text-xs text-gray-400">{label}</span>
-      <span className="text-xs font-medium text-gray-800">{value}</span>
-    </div>
-  );
-}
-
-function FieldEditor({ field, onChange, onDelete }: { field: FormField; onChange: (f: FormField) => void; onDelete: () => void }) {
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3.5">
-      <div className="flex items-center gap-3">
-        <FieldInput className="flex-1" value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} placeholder="Field label" />
-        <FieldSelect className="w-36" value={field.type} onChange={(e) => onChange({ ...field, type: e.target.value as FormField["type"] })}>
-          <option value="text">Text</option>
-          <option value="number">Number</option>
-          <option value="checkbox">Checkbox list</option>
-          <option value="select">Dropdown</option>
-          <option value="photo">Photo</option>
-          <option value="signature">Signature</option>
-        </FieldSelect>
-        <label className="flex shrink-0 items-center gap-1.5 text-xs text-gray-500">
-          <input type="checkbox" checked={field.required} onChange={(e) => onChange({ ...field, required: e.target.checked })} className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600" />
-          Required
-        </label>
-        <button onClick={onDelete} className="shrink-0 text-gray-300 hover:text-red-500 transition-colors"><FaTrash size={11} /></button>
-      </div>
-      {(field.type === "checkbox" || field.type === "select") && (
-        <div className="mt-2 pl-1">
-          <p className="mb-1 text-xs text-gray-400">Options (comma separated)</p>
-          <FieldInput
-            value={(field.options ?? []).join(", ")}
-            onChange={(e) => onChange({ ...field, options: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })}
-            placeholder="Option A, Option B, Option C"
-          />
+    <li>
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-gray-50/60">
+        <div className="flex min-w-0 items-center gap-3">
+          {open ? <FaChevronDown size={10} className="text-gray-400" /> : <FaChevronRight size={10} className="text-gray-400" />}
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-gray-800">{userName}</p>
+            <p className="text-xs text-gray-400">{formatDateTime(r.submittedAt)}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-xs text-gray-400">{r.answers.length} answers</span>
+          {flagged > 0 && <Badge variant="danger">{flagged} flagged</Badge>}
+        </div>
+      </button>
+      {open && (
+        <div className="space-y-3 bg-gray-50/50 px-5 pb-4 pl-12 pt-1">
+          {r.answers.length > 0 && (
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+              {r.answers.map((a) => (
+                <div key={a.fieldId} className="min-w-0">
+                  <dt className="flex items-center gap-1.5 text-xs text-gray-400">
+                    {a.flagged && <FaFlag size={9} className="text-red-500" />} {fields[a.fieldId]?.label ?? "Removed field"}
+                  </dt>
+                  <dd className={`wrap-break-word text-sm ${a.flagged ? "font-semibold text-red-600" : "text-gray-800"}`}>{renderValue(a.value)}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {r.tableRows.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-gray-500">Table rows</p>
+              {r.tableRows.map((row, i) => (
+                <p key={i} className="text-xs text-gray-600">
+                  {row.cells.map((c) => `${columns[c.columnId] ?? "?"}: ${renderValue(c.value)}`).join(" · ")}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       )}
-    </div>
-  );
-}
-
-function IssueContent({ companyIds, setCompanyIds, tier, setTier, availability, setAvailability, expiration, setExpiration }: {
-  companyIds: string[]; setCompanyIds: (v: string[]) => void;
-  tier: string; setTier: (v: string) => void;
-  availability: string; setAvailability: (v: string) => void;
-  expiration: string; setExpiration: (v: string) => void;
-}) {
-  const toggle = (id: string) => setCompanyIds(companyIds.includes(id) ? companyIds.filter((c) => c !== id) : [...companyIds, id]);
-  return (
-    <div className="space-y-4">
-      <div>
-        <div className="mb-1.5 flex items-center justify-between">
-          <FieldLabel>Companies</FieldLabel>
-          <button onClick={() => setCompanyIds(companyIds.length === COMPANIES.length ? [] : COMPANIES.map((c) => c.id))} className="text-xs font-medium text-blue-600 hover:text-blue-800">
-            {companyIds.length === COMPANIES.length ? "Clear all" : "Select all eligible"}
-          </button>
-        </div>
-        <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-gray-200 p-2">
-          {COMPANIES.map((c) => (
-            <label key={c.id} className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 cursor-pointer">
-              <input type="checkbox" checked={companyIds.includes(c.id)} onChange={() => toggle(c.id)} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-              <span className="text-sm text-gray-700">{c.name}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <FieldLabel>Required Tier</FieldLabel>
-          <FieldSelect value={tier} onChange={(e) => setTier(e.target.value)}>
-            <option>Starter</option><option>Professional</option><option>Enterprise</option>
-          </FieldSelect>
-        </div>
-        <div><FieldLabel>Availability Date</FieldLabel><FieldInput type="date" value={availability} onChange={(e) => setAvailability(e.target.value)} /></div>
-        <div><FieldLabel>Expiration (optional)</FieldLabel><FieldInput type="date" value={expiration} onChange={(e) => setExpiration(e.target.value)} /></div>
-      </div>
-    </div>
+    </li>
   );
 }
 
 export default function FormView() {
-  const { id } = useParams();
+  const { id = "" } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const draft = (location.state as { draft?: { title: string; category: string; ownership: Ownership } } | null)?.draft;
-  const existing = id ? formById(id) : undefined;
+  const [tab, setTab] = useState("structure");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const { names } = useCompanyNames();
+  const formQ = useApi<ApiResponse<Form>>(`/forms/${id}`);
+  const responsesQ = useApi<ApiResponse<FormResponse[]>>(`/forms/${id}/responses`);
+  const form = formQ.data?.data;
+  const usersQ = useApi<ApiResponse<User[]>>(form?.companyId ? "/admin/users" : null, { companyId: form?.companyId ?? undefined });
 
-  const [tab, setTab] = useState("builder");
-  const [retireOpen, setRetireOpen] = useState(false);
-  const [fields, setFields] = useState<FormField[]>(existing?.fields ?? [{ id: "f1", label: "Site / Location", type: "text", required: true }]);
-  const [distributions, setDistributions] = useState<DistributionRecord[]>(
-    existing ? DISTRIBUTIONS.filter((d) => d.contentId === existing.id) : []
-  );
-  const [issueOpen, setIssueOpen] = useState(false);
-  const [issueCompanyIds, setIssueCompanyIds] = useState<string[]>([]);
-  const [issueTier, setIssueTier] = useState("Starter");
-  const [issueAvailability, setIssueAvailability] = useState("");
-  const [issueExpiration, setIssueExpiration] = useState("");
-  const [updateTarget, setUpdateTarget] = useState<"selected" | "all" | null>(null);
-  const [selectedOutdated, setSelectedOutdated] = useState<string[]>([]);
-
-  if (!existing && !draft) {
-    return (
-      <div className="rounded-xl border border-gray-100 bg-white p-10 text-center shadow-sm">
-        <p className="text-sm text-gray-500">Form not found.</p>
-        <button onClick={() => navigate("/forms")} className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-800">&larr; Back to Forms</button>
-      </div>
-    );
+  if (formQ.loading) return <LoadingBlock label="Loading form…" />;
+  if (formQ.error || !form) {
+    return <div className="rounded-xl border border-gray-100 bg-white shadow-sm"><ErrorBlock message={formQ.error ?? "Form not found."} onRetry={formQ.reload} /></div>;
   }
 
-  const form: FormProduct = existing ?? {
-    id: id!, title: draft!.title, category: draft!.category, ownership: draft!.ownership, status: "Draft",
-    clientsUsing: 0, submissionsPerWeek: 0, required: false, version: "v0.1",
-    versionHistory: [{ version: "v0.1", date: new Date().toLocaleDateString("en-US", { day: "2-digit", month: "short", year: "numeric" }), author: "Super Admin", reviewer: "—", summary: "Initial draft created", publicationState: "Draft" }],
-    fields: [],
-  };
-
-  const outdated = distributions.filter((d) => d.clientVersion !== form.version);
-
-  function addField() {
-    setFields((prev) => [...prev, { id: `nf${fieldCounter++}`, label: "New field", type: "text", required: false }]);
-  }
-  function updateField(fid: string, next: FormField) {
-    setFields((prev) => prev.map((f) => (f.id === fid ? next : f)));
-  }
-  function deleteField(fid: string) {
-    setFields((prev) => prev.filter((f) => f.id !== fid));
-  }
-  function moveField(fid: string, dir: -1 | 1) {
-    setFields((prev) => {
-      const idx = prev.findIndex((f) => f.id === fid);
-      const swap = idx + dir;
-      if (swap < 0 || swap >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[swap]] = [next[swap], next[idx]];
-      return next;
-    });
-  }
-
-  function issue() {
-    const newRecords: DistributionRecord[] = issueCompanyIds.map((cid) => {
-      const c = COMPANIES.find((x) => x.id === cid)!;
-      return {
-        id: `d-new-${Date.now()}-${cid}`, contentId: form.id, contentType: "form", contentTitle: form.title,
-        companyId: c.id, companyName: c.name, ownership: form.ownership, clientVersion: form.version,
-        currentMasterVersion: form.version, availabilityDate: issueAvailability || "Immediately",
-        expirationDate: issueExpiration || null, requiredTier: issueTier as DistributionRecord["requiredTier"],
-        revocationDate: null, status: "Active",
-      };
-    });
-    setDistributions((prev) => [...prev.filter((d) => !issueCompanyIds.includes(d.companyId)), ...newRecords]);
-    setIssueOpen(false);
-    setIssueCompanyIds([]);
-  }
-
-  function confirmUpdate() {
-    const targets = updateTarget === "all" ? outdated.map((d) => d.id) : selectedOutdated;
-    setDistributions((prev) => prev.map((d) => (targets.includes(d.id) ? { ...d, clientVersion: form.version } : d)));
-    setUpdateTarget(null);
-    setSelectedOutdated([]);
-  }
+  const pages = [...(form.pages ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+  const fields: Record<string, FormField> = {};
+  const columns: Record<string, string> = {};
+  pages.forEach((p) => p.items.forEach((it) => {
+    it.fields?.forEach((f) => { fields[f._id] = f; });
+    it.columns?.forEach((c) => { columns[c._id] = c.label ?? ""; });
+  }));
+  const userName: Record<string, string> = {};
+  (usersQ.data?.data ?? []).forEach((u) => { userName[u._id] = u.name; });
+  const responses = responsesQ.data?.data ?? [];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-        <div className="flex min-w-0 items-center gap-3">
-          <button onClick={() => navigate("/forms")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors">
-            <FaArrowLeft size={14} />
-          </button>
-          <div className="min-w-0">
+    <div className="space-y-6">
+      <Link to="/forms" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800"><FaArrowLeft size={11} /> Forms</Link>
+
+      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="flex items-start gap-4">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><FaClipboardList size={20} /></div>
+          <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-lg font-bold text-gray-900">{form.title}</h1>
-              <Badge variant={statusBadge(form.status)}>{form.status}</Badge>
-              <Badge variant={ownershipBadge(form.ownership)}>{form.ownership}</Badge>
+              <h1 className="text-xl font-bold text-gray-900">{form.title}</h1>
+              <Badge variant={form.status === "published" ? "success" : "neutral"}>{form.status}</Badge>
             </div>
-            <p className="text-xs text-gray-400">{form.category} · {form.version}</p>
+            {form.description && <p className="mt-1 max-w-2xl text-sm text-gray-500">{form.description}</p>}
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-500">
+              <span className="flex items-center gap-1.5">
+                <FaBuilding size={11} />
+                {form.companyId ? <Link to={`/companies/${form.companyId}`} className="text-blue-600 hover:underline">{names[form.companyId] ?? "Company"}</Link> : "—"}
+              </span>
+              {form.ownerName && <span>Owner: {form.ownerName}</span>}
+              <span>{pages.length} page{pages.length === 1 ? "" : "s"} · {Object.keys(fields).length} fields</span>
+            </div>
           </div>
         </div>
-        <button onClick={() => setRetireOpen(true)} className="flex shrink-0 items-center gap-2 rounded-lg border border-red-200 px-3.5 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-          <FaTrash size={12} /> Retire
-        </button>
+        <DangerButton onClick={() => setDeleteOpen(true)}><FaTrash size={11} /> Delete form</DangerButton>
       </div>
 
-      <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="px-5 pt-2">
-          <Tabs
-            tabs={[
-              { key: "builder", label: "Builder" },
-              { key: "distribution", label: "Distribution", count: distributions.length },
-              { key: "versions", label: "Version Control", count: outdated.length || undefined },
-            ]}
-            active={tab}
-            onChange={setTab}
-          />
-        </div>
+      <Tabs
+        tabs={[{ key: "structure", label: "Structure" }, { key: "responses", label: "Responses", count: responsesQ.data ? responses.length : undefined }]}
+        active={tab}
+        onChange={setTab}
+      />
 
-        {tab === "builder" && (
-          <div className="p-5 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_260px]">
-            <div className="space-y-3">
-              <div className="flex items-start gap-2.5 rounded-lg border border-blue-100 bg-blue-50 px-3.5 py-3 text-xs text-blue-700">
-                <FaInfoCircle size={13} className="mt-0.5 shrink-0" />
-                Working field editor. Final field types/behavior should be reconciled against the separate Course and Form Builder Requirements Report.
-              </div>
-              {fields.map((f, i) => (
-                <div key={f.id} className="flex items-start gap-2">
-                  <div className="flex flex-col gap-1 pt-3">
-                    <button onClick={() => moveField(f.id, -1)} className="text-gray-300 hover:text-gray-600"><FaArrowUp size={9} /></button>
-                    <button onClick={() => moveField(f.id, 1)} className="text-gray-300 hover:text-gray-600"><FaArrowDown size={9} /></button>
-                  </div>
-                  <div className="flex-1">
-                    <FieldEditor field={f} onChange={(nf) => updateField(f.id, nf)} onDelete={() => deleteField(f.id)} />
-                  </div>
-                  <span className="w-4 pt-3 text-xs text-gray-300">{i + 1}</span>
-                </div>
-              ))}
-              <button onClick={addField} className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-200 py-2.5 text-xs text-gray-400 hover:border-blue-300 hover:text-blue-500 transition-colors">
-                <FaPlus size={10} /> Add Field
-              </button>
-            </div>
-            <div className="rounded-xl border border-gray-100 bg-white p-4 h-fit">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Form Info</p>
-              <div className="divide-y divide-gray-50">
-                <InfoRow label="Category" value={form.category} />
-                <InfoRow label="Ownership" value={form.ownership} />
-                <InfoRow label="Version" value={form.version} />
-                <InfoRow label="Clients Using" value={String(form.clientsUsing)} />
-                <InfoRow label="Required" value={form.required ? "Yes" : "No"} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {tab === "distribution" && (
-          <div className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">Companies currently issued this form.</p>
-              <button onClick={() => setIssueOpen(true)} className="flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition-colors">
-                <FaShareSquare size={12} /> Issue to Companies
-              </button>
-            </div>
-            {distributions.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-400">Not yet issued to any company.</p>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-gray-100">
-                <table className="min-w-full">
-                  <thead className="bg-gray-50/70">
-                    <tr>{["Company", "Client Version", "Tier", "Availability", "Expiration", "Status"].map((h) => <th key={h} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">{h}</th>)}</tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {distributions.map((d) => (
-                      <tr key={d.id} className="hover:bg-gray-50/60 transition-colors">
-                        <td className="px-4 py-3 text-sm font-medium text-gray-800">{d.companyName}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-gray-500">{d.clientVersion}{d.clientVersion !== form.version && <span className="ml-1.5 text-[10px] font-sans font-semibold text-amber-600">outdated</span>}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{d.requiredTier}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{d.availabilityDate}</td>
-                        <td className="px-4 py-3 text-sm text-gray-500">{d.expirationDate ?? "—"}</td>
-                        <td className="px-4 py-3"><Badge variant={d.status === "Active" ? "success" : d.status === "Scheduled" ? "info" : d.status === "Expired" ? "warning" : "danger"}>{d.status}</Badge></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === "versions" && (
-          <div className="p-5 space-y-5">
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Version History</p>
-              <div className="space-y-2 text-sm">
-                {form.versionHistory.map((v, i) => (
-                  <div key={v.version} className={`rounded-lg px-3.5 py-2.5 ${i === 0 ? "bg-blue-50" : "bg-gray-50"}`}>
-                    <div className="flex items-center justify-between">
-                      <p className={`font-medium ${i === 0 ? "text-blue-700" : "text-gray-700"}`}>{v.version}{i === 0 && " (current)"}</p>
-                      <span className="text-xs text-gray-400">{v.date} · {v.author}</span>
+      {tab === "structure" && (
+        pages.length === 0 ? <div className="rounded-xl border border-gray-100 bg-white shadow-sm"><EmptyBlock label="This form has no pages yet." /></div> : (
+          <div className="space-y-4">
+            {pages.map((p, pi) => (
+              <div key={p._id} className="rounded-xl border border-gray-100 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-3.5"><p className="text-sm font-semibold text-gray-800">Page {pi + 1}{p.title ? `: ${p.title}` : ""}</p></div>
+                <div className="divide-y divide-gray-50">
+                  {p.items.length === 0 && <p className="px-5 py-4 text-xs text-gray-400">Empty page.</p>}
+                  {p.items.map((it) => (
+                    <div key={it._id} className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={it.kind === "table" ? "purple" : it.kind === "instruction" ? "orange" : "info"}>{titleCase(it.kind ?? "section")}</Badge>
+                        <p className="text-sm font-medium text-gray-800">{it.title || "Untitled"}</p>
+                      </div>
+                      {it.body && <p className="mt-1.5 text-xs text-gray-500">{it.body}</p>}
+                      {it.kind === "table" && it.columns.length > 0 && (
+                        <p className="mt-2 text-xs text-gray-500">Columns: {it.columns.map((c) => c.label || "—").join(" · ")}</p>
+                      )}
+                      {it.fields.length > 0 && (
+                        <ul className="mt-2 space-y-1">
+                          {it.fields.map((f) => (
+                            <li key={f._id} className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                              <Badge variant="neutral">{titleCase(f.type ?? "text")}</Badge>
+                              <span>{f.label || "Untitled field"}</span>
+                              {f.required && <span className="text-red-500">*</span>}
+                              {f.options && f.options.length > 0 && <span className="text-gray-400">({f.options.join(", ")})</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
-                    <p className="mt-0.5 text-xs text-gray-500">{v.summary}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {outdated.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <div className="mb-3 flex items-start gap-2.5">
-                  <FaExclamationTriangle size={14} className="mt-0.5 shrink-0 text-amber-600" />
-                  <p className="text-sm text-amber-800">{outdated.length} client{outdated.length > 1 ? "s are" : " is"} on an outdated version. Choose how to proceed.</p>
-                </div>
-                <div className="space-y-1.5">
-                  {outdated.map((d) => (
-                    <label key={d.id} className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2 text-sm">
-                      <input type="checkbox" checked={selectedOutdated.includes(d.id)} onChange={() => setSelectedOutdated((prev) => prev.includes(d.id) ? prev.filter((x) => x !== d.id) : [...prev, d.id])} className="h-4 w-4 rounded border-gray-300 text-blue-600" />
-                      <span className="text-gray-700">{d.companyName}</span>
-                      <span className="ml-auto font-mono text-xs text-gray-400">{d.clientVersion} → {form.version}</span>
-                    </label>
                   ))}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button disabled={selectedOutdated.length === 0} onClick={() => setUpdateTarget("selected")} className="rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    Update Selected Clients
-                  </button>
-                  <button onClick={() => setUpdateTarget("all")} className="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-                    Update All Eligible Clients
-                  </button>
-                  <button className="rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-                    Leave Existing Version
-                  </button>
-                </div>
               </div>
-            )}
+            ))}
           </div>
-        )}
-      </div>
+        )
+      )}
 
-      <Modal
-        isOpen={issueOpen}
-        onClose={() => setIssueOpen(false)}
-        title="Issue to Companies"
-        footer={<><ModalBtn variant="secondary" onClick={() => setIssueOpen(false)}>Cancel</ModalBtn><ModalBtn variant="primary" onClick={issue}>Issue</ModalBtn></>}
-      >
-        <IssueContent companyIds={issueCompanyIds} setCompanyIds={setIssueCompanyIds} tier={issueTier} setTier={setIssueTier} availability={issueAvailability} setAvailability={setIssueAvailability} expiration={issueExpiration} setExpiration={setIssueExpiration} />
-      </Modal>
+      {tab === "responses" && (
+        <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
+          {responsesQ.loading ? <LoadingBlock /> : responsesQ.error ? <ErrorBlock message={responsesQ.error} onRetry={responsesQ.reload} /> : responses.length === 0 ? (
+            <EmptyBlock label="No responses submitted yet." />
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {responses.map((r) => (
+                <ResponseRow key={r._id} r={r} fields={fields} columns={columns} userName={(r.submittedBy && userName[r.submittedBy]) || "Unknown submitter"} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
-      <Modal
-        isOpen={updateTarget !== null}
-        onClose={() => setUpdateTarget(null)}
-        title="Confirm Forced Version Update"
-        footer={<><ModalBtn variant="secondary" onClick={() => setUpdateTarget(null)}>Cancel</ModalBtn><ModalBtn variant="primary" onClick={confirmUpdate}>Confirm &amp; Update</ModalBtn></>}
-      >
-        <p className="text-sm text-gray-600">
-          This pushes {form.version} to {updateTarget === "all" ? "all eligible outdated clients" : `${selectedOutdated.length} selected client(s)`} immediately.
-          Historical submissions already recorded keep the version that was in effect when they were submitted. This action is written to the audit log.
-        </p>
-      </Modal>
-
-      <Modal
-        isOpen={retireOpen}
-        onClose={() => setRetireOpen(false)}
-        title="Retire Form"
-        footer={<><ModalBtn variant="secondary" onClick={() => setRetireOpen(false)}>Cancel</ModalBtn><ModalBtn variant="danger" onClick={() => navigate("/forms")}>Retire Form</ModalBtn></>}
-      >
-        <p className="text-sm text-gray-600">
-          Retire <span className="font-semibold text-gray-900">{form.title}</span> permanently? It will no
-          longer be available to distribute to any client. Forms already submitted stay tied to the version used at the time.
-        </p>
-      </Modal>
+      <ConfirmDialog
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete form"
+        message={
+          <>
+            <p>Delete <span className="font-semibold text-gray-800">{form.title}</span>?</p>
+            <p className="mt-2 text-xs text-gray-500">All {responsesQ.data ? responses.length : ""} submitted response(s) are deleted too. This can't be undone.</p>
+          </>
+        }
+        onConfirm={() => api.del(`/forms/${id}`)}
+        onDone={() => navigate("/forms", { replace: true })}
+      />
     </div>
   );
 }

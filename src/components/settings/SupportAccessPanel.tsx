@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Badge } from "../components/ui/Badge";
-import { Modal, FieldLabel, FieldInput, FieldSelect, FieldTextarea, ModalBtn } from "../components/ui/Modal";
-import { SUPPORT_SESSIONS, type SupportSession } from "../data/supportSessions";
-import { COMPANIES } from "../data/companies";
+import { Badge } from "../ui/Badge";
+import { Modal, FieldLabel, FieldInput, FieldSelect, FieldTextarea, ModalBtn } from "../ui/Modal";
+import { SUPPORT_SESSIONS, type SupportSession } from "../../data/supportSessions";
+import { COMPANIES } from "../../data/companies";
 import { FaHeadset, FaEye, FaEyeSlash, FaExclamationTriangle, FaLock, FaUnlockAlt } from "react-icons/fa";
 
 function StartSessionContent({ companyId, setCompanyId, reason, setReason, ticket, setTicket, accessLevel, setAccessLevel }: {
@@ -36,7 +36,7 @@ function StartSessionContent({ companyId, setCompanyId, reason, setReason, ticke
   );
 }
 
-export default function SupportAccess() {
+export function SupportAccessPanel() {
   const [startOpen, setStartOpen] = useState(false);
   const [companyId, setCompanyId] = useState(COMPANIES[0].id);
   const [reason, setReason] = useState("");
@@ -67,11 +67,11 @@ export default function SupportAccess() {
   const history = [...localHistory, ...SUPPORT_SESSIONS];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Support Access</h1>
-          <p className="mt-1 text-sm text-gray-500">Controlled, logged access into a client workspace — read-only by default, every elevated action recorded.</p>
+          <h2 className="text-base font-semibold text-gray-900">Support Access</h2>
+          <p className="mt-0.5 text-xs text-gray-400">Controlled access into a client workspace: read-only by default, elevated only when needed.</p>
         </div>
         <button
           disabled={activeSession !== null}
@@ -112,7 +112,7 @@ export default function SupportAccess() {
       <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
         <div className="flex items-start gap-2.5 text-xs text-gray-500">
           <FaExclamationTriangle size={13} className="mt-0.5 shrink-0 text-gray-400" />
-          Support sessions never expose complete payment credentials or other restricted data, and end automatically after inactivity. Every session and elevated action is written to the Audit Log.
+          Support sessions never expose complete payment credentials or other restricted data, and end automatically after inactivity. Every session and elevated action is recorded in the session history.
         </div>
       </div>
 
