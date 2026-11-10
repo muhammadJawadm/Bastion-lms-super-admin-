@@ -44,7 +44,6 @@ const router = createBrowserRouter([
       { path: "assignments",               element: <Assignments />          },
       { path: "settings",                  element: <Settings />             },
       { path: "profile",                   element: <Profile />              },
-      { path: "support-access",            element: <Navigate to="/settings" replace /> },
       { path: "notifications",             element: <Notifications />        },
       { path: "*",                         element: <Navigate to="/" replace /> },
     ],
