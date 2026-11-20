@@ -1,7 +1,7 @@
 import { clearSession, getToken } from "./session";
 
 // No "/api" prefix — the backend mounts routes at the root (see backend src/app.js).
-export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "https://16.192.77.140.nip.io").replace(/\/+$/, "");
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export class ApiError extends Error {
   status: number;

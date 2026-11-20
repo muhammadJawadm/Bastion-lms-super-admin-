@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FaPlus, FaTrash, FaShieldAlt } from "react-icons/fa";
+import { FaTrash, FaShieldAlt } from "react-icons/fa";
 import { api, ApiError, errorMessage } from "../../lib/api";
 import { useApi } from "../../lib/useApi";
 import { avatarColor, formatDate, formatDateTime, generateTempPassword, initials } from "../../lib/format";
@@ -9,7 +9,7 @@ import { Badge } from "../ui/Badge";
 import { ConfirmDialog } from "../ui/ConfirmDialog";
 import { Modal, FieldLabel, FieldInput, ModalBtn } from "../ui/Modal";
 import { Alert, LoadingBlock, ErrorBlock, EmptyBlock, Spinner } from "../ui/States";
-import { TableCard, Th, Td, IconButton, PrimaryButton } from "../ui/PageHeader";
+import { TableCard, Th, Td, IconButton } from "../ui/PageHeader";
 
 // Not in the backend yet — POST /users only accepts user/client_admin.
 // Expected body: { name, email, password } → creates role "platform_admin", is_verified: true.
@@ -99,7 +99,7 @@ export function SuperAdminsPanel() {
           <h2 className="text-base font-semibold text-gray-900">Super Admins</h2>
           <p className="mt-0.5 text-xs text-gray-400">Bastion staff with platform-wide access. Any Super Admin can add another.</p>
         </div>
-        <PrimaryButton onClick={() => setAddOpen(true)}><FaPlus size={11} /> Add Super Admin</PrimaryButton>
+        {/* <PrimaryButton onClick={() => setAddOpen(true)}><FaPlus size={11} /> Add Super Admin</PrimaryButton> */}
       </div>
 
       <TableCard footer={!loading && !error ? `${admins.length} Super Admin${admins.length === 1 ? "" : "s"}` : undefined}>

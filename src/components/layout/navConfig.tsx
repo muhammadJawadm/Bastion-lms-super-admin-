@@ -2,7 +2,7 @@ import {
   FaThLarge, FaUsers, FaBuilding,
   FaCog, FaBell,
   FaGraduationCap, FaClipboardList,
-  FaFileInvoiceDollar, FaChartBar,
+  FaFileInvoiceDollar,
   FaUserGraduate, FaCertificate, FaCloudUploadAlt,
 } from "react-icons/fa";
 
@@ -58,7 +58,7 @@ export const navGroups: NavGroup[] = [
     label: "Preview · no API yet",
     preview: true,
     items: [
-      { label: "Analytics",     path: "/analytics",     icon: <FaChartBar size={15} />          },
+      // { label: "Analytics",     path: "/analytics",     icon: <FaChartBar size={15} />          },
       { label: "Notifications", path: "/notifications", icon: <FaBell size={15} />              },
     ],
   },
